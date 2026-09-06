@@ -21,6 +21,16 @@ export interface UploadOutcome {
   itemCount?: number;
 }
 
+/**
+ * Model vrací prázdný řetězec tam, kde údaj na dokladu není — schéma nesmí mít
+ * víc než 16 volitelných polí, takže se textová pole neposílají jako nullable.
+ * Do databáze ale patří null, ne prázdný text.
+ */
+function blank(value: string | null | undefined): string | null {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : null;
+}
+
 /** Dopočítá jednotkovou cenu, když ji faktura uvádí jen jako součet za řádek. */
 function resolveUnitPrice(
   unitPrice: number | null,
@@ -65,9 +75,9 @@ export async function uploadInvoices(formData: FormData): Promise<UploadOutcome[
       const supplierId = data.supplier_name
         ? await upsertSupplier({
             name: data.supplier_name,
-            ico: data.supplier_ico,
-            dic: data.supplier_dic,
-            address: data.supplier_address,
+            ico: blank(data.supplier_ico),
+            dic: blank(data.supplier_dic),
+            address: blank(data.supplier_address),
           })
         : null;
 
@@ -80,12 +90,12 @@ export async function uploadInvoices(formData: FormData): Promise<UploadOutcome[
         [
           supplierId,
           data.doc_type,
-          data.valid_until,
-          data.invoice_number,
-          data.variable_symbol,
-          data.issue_date,
-          data.taxable_date,
-          data.due_date,
+          blank(data.valid_until),
+          blank(data.invoice_number),
+          blank(data.variable_symbol),
+          blank(data.issue_date),
+          blank(data.taxable_date),
+          blank(data.due_date),
           data.currency || "CZK",
           data.total_net,
           data.total_vat,
@@ -114,7 +124,7 @@ export async function uploadInvoices(formData: FormData): Promise<UploadOutcome[
               supplierId,
               item.description,
               item.material_name,
-              item.catalog_code,
+              blank(item.catalog_code),
               catalog,
             )
           : { materialId: null, confidence: 0, source: "none" as const };
@@ -131,9 +141,9 @@ export async function uploadInvoices(formData: FormData): Promise<UploadOutcome[
             item.line_no,
             item.description,
             normalizeText(item.description),
-            item.catalog_code,
+            blank(item.catalog_code),
             item.quantity,
-            normalizeUnit(item.unit) ?? item.unit,
+            normalizeUnit(item.unit) ?? blank(item.unit),
             resolveUnitPrice(item.unit_price_net, item.line_total_net, item.quantity),
             item.discount_pct,
             item.line_total_net,

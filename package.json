@@ -9,7 +9,8 @@
     "start": "next start",
     "lint": "next lint",
     "db:init": "tsx src/db/init.ts",
-    "db:seed": "tsx src/db/seed.ts"
+    "db:seed": "tsx src/db/seed.ts",
+    "check:schema": "tsx tools/check-schema.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.124.0",
