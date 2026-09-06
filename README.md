@@ -112,13 +112,21 @@ originálních PDF faktur.
 
 ## Náklady na čtení faktur
 
-Vytěžení jedné faktury je jeden dotaz na Claude API. U běžné faktury o dvou
-stranách to vychází řádově na jednotky korun. Model se dá přepnout v `.env`:
+Vytěžení jednoho dokladu je jeden dotaz na Claude API — platí se jen za přijaté
+doklady, ne za prohlížení cen. Orientačně za jeden doklad o dvou stranách:
 
-```
-ANTHROPIC_MODEL=claude-sonnet-5   # levnější varianta
-ANTHROPIC_EFFORT=medium           # low | medium | high
-```
+| `ANTHROPIC_MODEL` | Cena za doklad |
+| --- | --- |
+| `claude-opus-5` (výchozí) | ~2,20 Kč |
+| `claude-sonnet-5` | ~0,90 Kč |
+| `claude-haiku-4-5` | ~0,45 Kč |
+
+Druhá proměnná `ANTHROPIC_EFFORT` (`low` / `medium` / `high`, výchozí `medium`)
+řídí, jak důkladně model doklad pročítá — vyšší hodnota znamená přesnější čtení
+za delší zpracování a vyšší cenu.
+
+Lokálně se obojí mění v `.env`. Na Vercelu v *Settings → Environment Variables*
+a **je potřeba pak dát Redeploy**, jinak se změna neprojeví.
 
 ## Struktura projektu
 
