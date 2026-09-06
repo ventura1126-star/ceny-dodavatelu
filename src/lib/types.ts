@@ -37,6 +37,7 @@ export interface Invoice {
   status: "draft" | "confirmed";
   project: string | null;
   file_name: string | null;
+  extraction_model: string | null;
   extraction_warnings: string | null;
   created_at: string;
   confirmed_at: string | null;

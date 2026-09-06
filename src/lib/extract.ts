@@ -129,38 +129,51 @@ export async function extractInvoice(pdf: Buffer, fileName: string): Promise<Ext
 
   const client = new Anthropic();
 
+  const request = {
+    model: MODEL,
+    max_tokens: 16000,
+    system: SYSTEM_PROMPT,
+    messages: [
+      {
+        role: "user" as const,
+        content: [
+          {
+            type: "document" as const,
+            source: {
+              type: "base64" as const,
+              media_type: "application/pdf" as const,
+              data: pdf.toString("base64"),
+            },
+          },
+          {
+            type: "text" as const,
+            text: `Zpracuj tento doklad (soubor ${fileName}) a vrať strukturovaná data.`,
+          },
+        ],
+      },
+    ],
+  };
+
   let message;
   try {
     message = await client.messages.parse({
-      model: MODEL,
-      max_tokens: 16000,
-      system: SYSTEM_PROMPT,
-      output_config: {
-        effort: EFFORT,
-        format: zodOutputFormat(InvoiceSchema),
-      },
-      messages: [
-        {
-          role: "user",
-          content: [
-            {
-              type: "document",
-              source: {
-                type: "base64",
-                media_type: "application/pdf",
-                data: pdf.toString("base64"),
-              },
-            },
-            {
-              type: "text",
-              text: `Zpracuj tento doklad (soubor ${fileName}) a vrať strukturovaná data.`,
-            },
-          ],
-        },
-      ],
+      ...request,
+      output_config: { effort: EFFORT, format: zodOutputFormat(InvoiceSchema) },
     });
   } catch (err) {
-    throw new Error(explainApiError(err));
+    // Starší a menší modely parametr effort neznají. Není za co bojovat —
+    // zopakujeme dotaz bez něj, ať volba modelu nerozbije celou aplikaci.
+    if (!/does not support the effort parameter/i.test(errorMessage(err))) {
+      throw new Error(explainApiError(err));
+    }
+    try {
+      message = await client.messages.parse({
+        ...request,
+        output_config: { format: zodOutputFormat(InvoiceSchema) },
+      });
+    } catch (retryErr) {
+      throw new Error(explainApiError(retryErr));
+    }
   }
 
   const data = message.parsed_output;
@@ -184,8 +197,12 @@ export async function extractInvoice(pdf: Buffer, fileName: string): Promise<Ext
  * Přeloží chyby z Anthropic API na větu, ze které je poznat, co udělat.
  * Syrová anglická odpověď s JSONem je v aplikaci pro účetní k ničemu.
  */
+function errorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
+}
+
 function explainApiError(err: unknown): string {
-  const message = err instanceof Error ? err.message : String(err);
+  const message = errorMessage(err);
   const status =
     typeof err === "object" && err !== null && "status" in err
       ? Number((err as { status: unknown }).status)
@@ -193,6 +210,9 @@ function explainApiError(err: unknown): string {
 
   if (/credit balance is too low/i.test(message)) {
     return "Na účtu Anthropic došel kredit. Dobijte ho na console.anthropic.com v sekci Plans & Billing — pak stačí doklad nahrát znovu.";
+  }
+  if (/not_found_error|model.*not (be )?found|invalid model|unknown model/i.test(message)) {
+    return `Model "${MODEL}" neexistuje. Zkontrolujte proměnnou ANTHROPIC_MODEL — platné hodnoty jsou claude-opus-5, claude-sonnet-5 nebo claude-haiku-4-5.`;
   }
   if (status === 401 || /authentication|invalid x-api-key/i.test(message)) {
     return "Klíč ANTHROPIC_API_KEY je neplatný nebo chybí. Zkontrolujte ho v nastavení aplikace.";

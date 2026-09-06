@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import InvoiceReview from "@/components/InvoiceReview";
 import { Badge, PageTitle } from "@/components/ui";
+import { DOC_TYPE_LABELS, type DocType } from "@/lib/doctypes";
 import { formatDate } from "@/lib/format";
 import { CATEGORIES } from "@/lib/normalize";
 import { getInvoice, getInvoiceItems, listMaterials } from "@/lib/repo";
@@ -31,7 +32,14 @@ export default async function InvoiceDetailPage({
     <>
       <PageTitle
         title={invoice.supplier_name ?? "Neznámý dodavatel"}
-        subtitle={`Faktura ${invoice.invoice_number ?? "bez čísla"} · vystaveno ${formatDate(invoice.issue_date)}`}
+        subtitle={[
+          DOC_TYPE_LABELS[invoice.doc_type as DocType] ?? "Doklad",
+          invoice.invoice_number ?? "bez čísla",
+          `vystaveno ${formatDate(invoice.issue_date)}`,
+          invoice.extraction_model ? `přečteno modelem ${invoice.extraction_model}` : null,
+        ]
+          .filter(Boolean)
+          .join(" · ")}
         action={
           <div className="flex items-center gap-3">
             {invoice.status === "confirmed" ? (
