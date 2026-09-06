@@ -41,13 +41,17 @@ export default async function MaterialsPage({
           <table className="table-base">
             <thead>
               <tr>
-                <th>Materiál</th>
-                <th>Kategorie</th>
-                <th className="num">Dodavatelů</th>
-                <th className="num">Nejlepší cena</th>
-                <th>u koho</th>
-                <th className="num">Poslední cena</th>
-                <th className="num">Naposledy</th>
+                <th rowSpan={2}>Materiál</th>
+                <th rowSpan={2}>Kategorie</th>
+                <th className="num" rowSpan={2}>Dodavatelů</th>
+                <th className="num" colSpan={2}>Fakturováno — nejlepší</th>
+                <th className="num" colSpan={2}>Nabídnuto — nejlepší</th>
+              </tr>
+              <tr>
+                <th className="num">cena</th>
+                <th>u koho / kdy</th>
+                <th className="num">cena</th>
+                <th>u koho / kdy</th>
               </tr>
             </thead>
             <tbody>
@@ -60,12 +64,20 @@ export default async function MaterialsPage({
                   </td>
                   <td className="text-bark-600">{m.category}</td>
                   <td className="num">{m.suppliers || "—"}</td>
-                  <td className="num font-medium text-emerald-800">
-                    {m.best_price !== null ? `${formatCzk(m.best_price)} / ${m.unit}` : "—"}
+                  <td className="num font-medium">
+                    {m.best_invoiced !== null ? `${formatCzk(m.best_invoiced)} / ${m.unit}` : "—"}
                   </td>
-                  <td className="text-bark-700">{m.best_supplier ?? "—"}</td>
-                  <td className="num">{formatCzk(m.last_price)}</td>
-                  <td className="num text-bark-500">{formatDate(m.last_date)}</td>
+                  <td className="text-bark-700">
+                    {m.best_invoiced_supplier ?? "—"}
+                    <div className="text-xs text-bark-500">{formatDate(m.last_invoiced_date)}</div>
+                  </td>
+                  <td className="num font-medium text-sky-800">
+                    {m.best_offered !== null ? `${formatCzk(m.best_offered)} / ${m.unit}` : "—"}
+                  </td>
+                  <td className="text-bark-700">
+                    {m.best_offered_supplier ?? "—"}
+                    <div className="text-xs text-bark-500">{formatDate(m.last_offered_date)}</div>
+                  </td>
                 </tr>
               ))}
             </tbody>

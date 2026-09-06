@@ -104,6 +104,7 @@ export type Category = (typeof CATEGORIES)[number];
 const NON_MATERIAL_PATTERNS = [
   /doprav/, /prepravn/, /manipulac/, /palet/, /vratn/, /zaokrouhlen/, /balne/,
   /poplatek/, /recyklacn/, /nakladk/, /vykladk/, /jerab/, /storno/, /zaloh/,
+  /skladan/, /slozen/, /dovoz/, /expedic/, /pujcovn/, /najem/,
 ];
 
 export function looksLikeNonMaterial(raw: string): boolean {

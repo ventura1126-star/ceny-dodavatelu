@@ -48,8 +48,8 @@ export default function Uploader() {
           dragging ? "border-bark-500 bg-bark-100" : "border-bark-300 bg-white"
         }`}
       >
-        <p className="font-medium text-bark-800">Přetáhněte sem PDF faktury</p>
-        <p className="mt-1 text-sm text-bark-600">Můžete nahrát i několik faktur najednou.</p>
+        <p className="font-medium text-bark-800">Přetáhněte sem PDF dokladů</p>
+        <p className="mt-1 text-sm text-bark-600">Faktury i cenové nabídky, klidně několik najednou.</p>
         <button
           type="button"
           onClick={() => inputRef.current?.click()}
@@ -92,11 +92,11 @@ export default function Uploader() {
             disabled={pending}
             className="mt-4 rounded-lg bg-bark-700 px-4 py-2 text-sm font-medium text-white transition hover:bg-bark-800 disabled:opacity-60"
           >
-            {pending ? "Čtu faktury…" : `Zpracovat ${files.length} ${files.length === 1 ? "fakturu" : "faktur"}`}
+            {pending ? "Čtu doklady…" : `Zpracovat ${files.length} ${files.length === 1 ? "doklad" : "dokladů"}`}
           </button>
           {pending ? (
             <p className="mt-2 text-xs text-bark-500">
-              Vytěžení jedné faktury trvá zhruba 10–30 sekund. Nezavírejte stránku.
+              Vytěžení jednoho dokladu trvá zhruba 10–30 sekund. Nezavírejte stránku.
             </p>
           ) : null}
         </div>

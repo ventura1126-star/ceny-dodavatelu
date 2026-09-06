@@ -2,6 +2,7 @@ import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import * as z from "zod/v4";
+import { DOC_TYPES } from "./doctypes";
 import { CATEGORIES } from "./normalize";
 import { CANONICAL_UNITS } from "./units";
 
@@ -55,6 +56,15 @@ const ItemSchema = z.object({
 });
 
 const InvoiceSchema = z.object({
+  doc_type: z
+    .enum(DOC_TYPES as unknown as [string, ...string[]])
+    .describe(
+      "Druh dokladu: faktura (daňový doklad), nabidka (cenová nabídka), potvrzeni (potvrzení objednávky), dodaci_list.",
+    ),
+  valid_until: z
+    .string()
+    .nullable()
+    .describe("Do kdy platí nabídková cena (YYYY-MM-DD). Jen u nabídek, jinak null."),
   supplier_name: z.string().describe("Obchodní jméno dodavatele (vystavitele faktury), ne odběratele."),
   supplier_ico: z.string().nullable(),
   supplier_dic: z.string().nullable(),
@@ -91,7 +101,17 @@ Z přiloženého PDF vytěž hlavičku faktury a VŠECHNY fakturované řádky. 
 6. material_name je tvůj sjednocený název pro katalog. Piš ho konzistentně ve stejné struktuře: druh + dřevina/materiál + rozměr + jakost. Vynech skladové kódy, počty v balení a marketingové přívlastky.
 7. Rozměry piš v milimetrech bez mezer, oddělené písmenem x: 60x120, 19x121x4000.
 8. Když si nejsi jistý, radši dej null a napiš důvod do warnings. Nikdy si údaj nevymýšlej.
-9. Když faktura obsahuje víc dokladů nebo dodací listy, zpracuj jen fakturu.`;
+9. Když doklad obsahuje víc dokumentů, zpracuj ten hlavní.
+10. Urči druh dokladu podle jeho záhlaví, ne podle obsahu:
+    - "Faktura", "Daňový doklad", "Faktura - daňový doklad" → faktura
+    - "Cenová nabídka", "Nabídka", "Kalkulace", "Předběžný rozpočet" → nabidka
+    - "Potvrzení objednávky", "Potvrzení zakázky" → potvrzeni
+    - "Dodací list" → dodaci_list
+    U nabídek a potvrzení objednávky bývá věta, že ceny jsou nezávazné nebo platí
+    do určitého data — to datum vrať v valid_until.
+11. Dodavatelé často účtují v jiné jednotce, než ve které prodávají: například
+    "30 bal" a zároveň "630 m" s cenou za metr. Vždy vrať tu jednotku a množství,
+    ke kterým se vztahuje jednotková cena — tedy 630 a "m", ne 30 a "bal".`;
 
 export interface ExtractResult {
   data: ExtractedInvoice;
@@ -103,45 +123,50 @@ export interface ExtractResult {
 export async function extractInvoice(pdf: Buffer, fileName: string): Promise<ExtractResult> {
   if (!process.env.ANTHROPIC_API_KEY?.trim()) {
     throw new Error(
-      "Chybí ANTHROPIC_API_KEY. Zkopírujte .env.example na .env a doplňte klíč z console.anthropic.com.",
+      "Chybí ANTHROPIC_API_KEY. Doplňte klíč z console.anthropic.com do nastavení aplikace.",
     );
   }
 
   const client = new Anthropic();
 
-  const message = await client.messages.parse({
-    model: MODEL,
-    max_tokens: 16000,
-    system: SYSTEM_PROMPT,
-    output_config: {
-      effort: EFFORT,
-      format: zodOutputFormat(InvoiceSchema),
-    },
-    messages: [
-      {
-        role: "user",
-        content: [
-          {
-            type: "document",
-            source: {
-              type: "base64",
-              media_type: "application/pdf",
-              data: pdf.toString("base64"),
-            },
-          },
-          {
-            type: "text",
-            text: `Zpracuj tuto fakturu (soubor ${fileName}) a vrať strukturovaná data.`,
-          },
-        ],
+  let message;
+  try {
+    message = await client.messages.parse({
+      model: MODEL,
+      max_tokens: 16000,
+      system: SYSTEM_PROMPT,
+      output_config: {
+        effort: EFFORT,
+        format: zodOutputFormat(InvoiceSchema),
       },
-    ],
-  });
+      messages: [
+        {
+          role: "user",
+          content: [
+            {
+              type: "document",
+              source: {
+                type: "base64",
+                media_type: "application/pdf",
+                data: pdf.toString("base64"),
+              },
+            },
+            {
+              type: "text",
+              text: `Zpracuj tento doklad (soubor ${fileName}) a vrať strukturovaná data.`,
+            },
+          ],
+        },
+      ],
+    });
+  } catch (err) {
+    throw new Error(explainApiError(err));
+  }
 
   const data = message.parsed_output;
   if (!data) {
     throw new Error(
-      "Model nevrátil použitelná data. Zkuste to prosím znovu, nebo položky doplňte ručně.",
+      "Model nevrátil použitelná data. Zkuste doklad nahrát znovu, nebo položky doplňte ručně.",
     );
   }
 
@@ -153,4 +178,36 @@ export async function extractInvoice(pdf: Buffer, fileName: string): Promise<Ext
       output: message.usage.output_tokens,
     },
   };
+}
+
+/**
+ * Přeloží chyby z Anthropic API na větu, ze které je poznat, co udělat.
+ * Syrová anglická odpověď s JSONem je v aplikaci pro účetní k ničemu.
+ */
+function explainApiError(err: unknown): string {
+  const message = err instanceof Error ? err.message : String(err);
+  const status =
+    typeof err === "object" && err !== null && "status" in err
+      ? Number((err as { status: unknown }).status)
+      : 0;
+
+  if (/credit balance is too low/i.test(message)) {
+    return "Na účtu Anthropic došel kredit. Dobijte ho na console.anthropic.com v sekci Plans & Billing — pak stačí doklad nahrát znovu.";
+  }
+  if (status === 401 || /authentication|invalid x-api-key/i.test(message)) {
+    return "Klíč ANTHROPIC_API_KEY je neplatný nebo chybí. Zkontrolujte ho v nastavení aplikace.";
+  }
+  if (status === 429 || /rate limit/i.test(message)) {
+    return "Anthropic API je zahlcené. Zkuste to za chvíli, nebo nahrávejte doklady po menších dávkách.";
+  }
+  if (/could not process image|unsupported|invalid.*pdf|corrupt/i.test(message)) {
+    return "Soubor se nepodařilo přečíst — buď to není platné PDF, nebo je poškozené. Zkuste ho znovu vyexportovat.";
+  }
+  if (status >= 500) {
+    return "Anthropic API má dočasný výpadek. Zkuste to prosím za pár minut znovu.";
+  }
+  if (/timeout|ETIMEDOUT|ECONNRESET|fetch failed/i.test(message)) {
+    return "Spojení s Anthropic API se nepodařilo navázat. Zkontrolujte připojení a zkuste to znovu.";
+  }
+  return `Čtení dokladu selhalo: ${message}`;
 }

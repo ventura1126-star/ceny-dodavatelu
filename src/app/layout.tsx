@@ -9,8 +9,8 @@ export const metadata: Metadata = {
 
 const NAV = [
   { href: "/", label: "Přehled" },
-  { href: "/nahrat", label: "Nahrát faktury" },
-  { href: "/faktury", label: "Faktury" },
+  { href: "/nahrat", label: "Nahrát doklady" },
+  { href: "/faktury", label: "Doklady" },
   { href: "/materialy", label: "Materiály a ceny" },
   { href: "/dodavatele", label: "Dodavatelé" },
   { href: "/kalkulace", label: "Kalkulace" },

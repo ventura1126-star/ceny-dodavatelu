@@ -6,6 +6,7 @@ build/
 *.pem
 
 # lokální data a tajemství
+vzorky/
 .env
 .env.local
 data/*.db

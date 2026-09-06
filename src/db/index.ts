@@ -1,5 +1,5 @@
 import { createClient, type Client, type InValue, type Row } from "@libsql/client";
-import { DDL } from "./ddl";
+import { COLUMN_MIGRATIONS, DDL } from "./ddl";
 
 let client: Client | null = null;
 let ready: Promise<void> | null = null;
@@ -28,6 +28,17 @@ export function ensureSchema(): Promise<void> {
       const c = db();
       await c.execute("PRAGMA foreign_keys = ON");
       for (const statement of DDL) await c.execute(statement);
+
+      // Doplní sloupce, které v už existující databázi chybí.
+      for (const migration of COLUMN_MIGRATIONS) {
+        const info = await c.execute(`PRAGMA table_info(${migration.table})`);
+        const has = info.rows.some((row) => row.name === migration.column);
+        if (!has) {
+          await c.execute(
+            `ALTER TABLE ${migration.table} ADD COLUMN ${migration.column} ${migration.definition}`,
+          );
+        }
+      }
     })().catch((err) => {
       ready = null;
       throw err;

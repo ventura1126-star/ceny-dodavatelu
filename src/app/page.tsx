@@ -25,13 +25,13 @@ export default async function DashboardPage() {
             href="/nahrat"
             className="rounded-lg bg-bark-700 px-4 py-2 text-sm font-medium text-white transition hover:bg-bark-800"
           >
-            Nahrát faktury
+            Nahrát doklady
           </Link>
         }
       />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Stat label="Zpracované faktury" value={String(stats.invoices)} />
+        <Stat label="Zpracované doklady" value={String(stats.invoices)} />
         <Stat label="Materiály v katalogu" value={String(stats.materials)} />
         <Stat label="Dodavatelé" value={String(stats.suppliers)} />
         <Stat label="Nakoupeno za 12 měsíců" value={formatCzk(stats.spent_12m, true)} hint="bez DPH" />
@@ -41,11 +41,11 @@ export default async function DashboardPage() {
         <Card className="mt-6 border-amber-300 bg-amber-50 p-4">
           <p className="text-sm font-medium text-amber-900">
             {drafts.length === 1
-              ? "1 faktura čeká na kontrolu"
-              : `${drafts.length} faktur čeká na kontrolu`}
+              ? "1 doklad čeká na kontrolu"
+              : `${drafts.length} dokladů čeká na kontrolu`}
           </p>
           <p className="mt-1 text-sm text-amber-800">
-            Dokud fakturu nepotvrdíte, její ceny se do databáze nezapočítají.
+            Dokud doklad nepotvrdíte, jeho ceny se do databáze nezapočítají.
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
             {drafts.slice(0, 6).map((d) => (
@@ -64,7 +64,7 @@ export default async function DashboardPage() {
       <div className="mt-8 grid gap-6 lg:grid-cols-2">
         <section>
           <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-bark-600">
-            Změny cen oproti minulému nákupu
+            Změny fakturovaných cen oproti minulému nákupu
           </h2>
           {alerts.length === 0 ? (
             <Empty
@@ -111,7 +111,7 @@ export default async function DashboardPage() {
             Odběry u dodavatelů
           </h2>
           {topSuppliers.length === 0 ? (
-            <Empty title="Zatím žádní dodavatelé" cta={{ href: "/nahrat", label: "Nahrát první fakturu" }} />
+            <Empty title="Zatím žádní dodavatelé" cta={{ href: "/nahrat", label: "Nahrát první doklad" }} />
           ) : (
             <Card className="overflow-x-auto">
               <table className="table-base">

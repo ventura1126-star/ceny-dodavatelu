@@ -73,12 +73,14 @@ export async function uploadInvoices(formData: FormData): Promise<UploadOutcome[
 
       const invoice = await run(
         `INSERT INTO invoices
-           (supplier_id, invoice_number, variable_symbol, issue_date, taxable_date, due_date,
-            currency, total_net, total_vat, total_gross, status, file_name, file_hash,
-            extraction_model, extraction_raw, extraction_warnings)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft', ?, ?, ?, ?, ?)`,
+           (supplier_id, doc_type, valid_until, invoice_number, variable_symbol, issue_date,
+            taxable_date, due_date, currency, total_net, total_vat, total_gross, status,
+            file_name, file_hash, extraction_model, extraction_raw, extraction_warnings)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft', ?, ?, ?, ?, ?)`,
         [
           supplierId,
+          data.doc_type,
+          data.valid_until,
           data.invoice_number,
           data.variable_symbol,
           data.issue_date,
@@ -191,6 +193,8 @@ export interface ItemDecision {
 
 export interface InvoiceHeaderInput {
   supplierName: string;
+  docType: string;
+  validUntil: string | null;
   invoiceNumber: string | null;
   issueDate: string | null;
   project: string | null;
@@ -213,11 +217,13 @@ export async function saveInvoice(
     : null;
 
   await run(
-    `UPDATE invoices SET supplier_id = ?, invoice_number = ?, issue_date = ?, project = ?,
-            total_net = ?, status = ?, confirmed_at = ?
+    `UPDATE invoices SET supplier_id = ?, doc_type = ?, valid_until = ?, invoice_number = ?,
+            issue_date = ?, project = ?, total_net = ?, status = ?, confirmed_at = ?
      WHERE id = ?`,
     [
       supplierId,
+      header.docType,
+      header.validUntil,
       header.invoiceNumber,
       header.issueDate,
       header.project,

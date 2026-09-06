@@ -18,9 +18,41 @@ export interface CalcRow {
   label: string;
   quantity: number;
   unit: string | null;
-  best_price: number | null;
-  best_supplier: string | null;
-  last_price: number | null;
+  best_invoiced: number | null;
+  best_invoiced_supplier: string | null;
+  last_invoiced_date: string | null;
+  best_offered: number | null;
+  best_offered_supplier: string | null;
+  last_offered_date: string | null;
+}
+
+type PriceMode = "auto" | "invoiced" | "offered";
+
+const MODE_LABELS: Record<PriceMode, string> = {
+  auto: "automaticky (platná nabídka, jinak faktura)",
+  invoiced: "jen fakturované ceny",
+  offered: "jen nabídkové ceny",
+};
+
+/**
+ * Která cena se použije pro položku.
+ *
+ * Ve výchozím režimu vyhrává platná nabídka, pokud je novější než poslední
+ * faktura — za tu materiál skutečně koupíte. Když nabídka není nebo je starší,
+ * počítá se fakturovanou cenou.
+ */
+function pickPrice(row: CalcRow, mode: PriceMode) {
+  const invoiced = { price: row.best_invoiced, supplier: row.best_invoiced_supplier, source: "faktura" as const };
+  const offered = { price: row.best_offered, supplier: row.best_offered_supplier, source: "nabídka" as const };
+
+  if (mode === "invoiced") return invoiced;
+  if (mode === "offered") return offered;
+
+  if (offered.price === null) return invoiced;
+  if (invoiced.price === null) return offered;
+  const offerNewer =
+    (row.last_offered_date ?? "") >= (row.last_invoiced_date ?? "");
+  return offerNewer ? offered : invoiced;
 }
 
 export default function CalculationEditor({
@@ -37,9 +69,9 @@ export default function CalculationEditor({
   const [pickId, setPickId] = useState<number | null>(null);
   const [pickName, setPickName] = useState("");
   const [quantity, setQuantity] = useState("1");
-  const [mode, setMode] = useState<"best" | "last">("best");
+  const [mode, setMode] = useState<PriceMode>("auto");
 
-  const priceOf = (row: CalcRow) => (mode === "best" ? row.best_price : row.last_price);
+  const priceOf = (row: CalcRow) => pickPrice(row, mode).price;
   const total = rows.reduce((acc, r) => acc + (priceOf(r) ?? 0) * r.quantity, 0);
   const missing = rows.filter((r) => priceOf(r) === null).length;
 
@@ -99,11 +131,14 @@ export default function CalculationEditor({
           <span className="text-bark-600">Počítat cenou:</span>
           <select
             value={mode}
-            onChange={(e) => setMode(e.target.value as "best" | "last")}
+            onChange={(e) => setMode(e.target.value as PriceMode)}
             className="rounded-lg border border-bark-300 bg-white px-2 py-1.5 text-sm"
           >
-            <option value="best">nejlepší u dodavatelů</option>
-            <option value="last">poslední nakoupenou</option>
+            {(Object.keys(MODE_LABELS) as PriceMode[]).map((m) => (
+              <option key={m} value={m}>
+                {MODE_LABELS[m]}
+              </option>
+            ))}
           </select>
         </div>
       </div>
@@ -116,7 +151,7 @@ export default function CalculationEditor({
               <th className="num w-32">Množství</th>
               <th className="w-16">MJ</th>
               <th className="num w-32">Cena/MJ</th>
-              <th className="w-48">Dodavatel</th>
+              <th className="w-56">Zdroj ceny</th>
               <th className="num w-32">Celkem</th>
               <th className="w-10" />
             </tr>
@@ -152,7 +187,18 @@ export default function CalculationEditor({
                     formatCzk(priceOf(row))
                   )}
                 </td>
-                <td className="text-bark-600">{mode === "best" ? (row.best_supplier ?? "—") : "—"}</td>
+                <td className="text-bark-600">
+                  {priceOf(row) === null ? (
+                    "—"
+                  ) : (
+                    <>
+                      {pickPrice(row, mode).supplier ?? "—"}
+                      <span className="ml-1 text-xs text-bark-500">
+                        ({pickPrice(row, mode).source})
+                      </span>
+                    </>
+                  )}
+                </td>
                 <td className="num font-medium">
                   {priceOf(row) === null ? "—" : formatCzk((priceOf(row) ?? 0) * row.quantity)}
                 </td>
@@ -194,12 +240,13 @@ export default function CalculationEditor({
 
       {missing > 0 ? (
         <p className="text-sm text-amber-800">
-          {missing} položek nemá cenu — buď je ještě nemáme na žádné potvrzené faktuře, nebo
-          zvolený režim ceny u nich nic nenajde. Do součtu se nezapočítaly.
+          {missing} položek nemá cenu — buď je ještě nemáme na žádném potvrzeném dokladu, nebo
+          v nich zvolený režim ceny nic nenajde (třeba jen nabídky, které už neplatí). Do součtu
+          se nezapočítaly.
         </p>
       ) : null}
       <p className="text-xs text-bark-500">
-        Celkem {formatNumber(rows.length)} položek. Ceny vycházejí z posledních potvrzených faktur.
+        Celkem {formatNumber(rows.length)} položek. Ceny vycházejí z posledních potvrzených dokladů.
       </p>
     </div>
   );

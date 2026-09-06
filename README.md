@@ -1,17 +1,35 @@
 # Ceník dodavatelů — Mistři dřeva s.r.o.
 
-Aplikace, do které se nahrávají PDF faktury od dodavatelů. Z každé faktury se
-vytěží všechny položky a z nich se postupně staví databáze nákupních cen
-materiálu. Pak stačí zadat, co hledáte — třeba `kvh 60x120` — a uvidíte, za
-kolik ten materiál máte u kterého dodavatele, jak se cena vyvíjela a kolik jste
-u koho celkem odebrali.
+Aplikace, do které se nahrávají PDF doklady od dodavatelů — **faktury i cenové
+nabídky**. Z každého dokladu se vytěží všechny položky a z nich se postupně staví
+databáze nákupních cen materiálu. Pak stačí zadat, co hledáte — třeba
+`kvh 60x120` — a uvidíte, za kolik ten materiál máte u kterého dodavatele, jak se
+cena vyvíjela a kolik jste u koho celkem odebrali.
+
+## Fakturováno vs. nabídnuto
+
+Doklady se dělí na dvě cenové větve, které se nikde nesčítají:
+
+| Větev | Doklady | Co říká |
+| --- | --- | --- |
+| **Fakturováno** | faktura, dodací list | co jste za materiál skutečně zaplatili |
+| **Nabídnuto** | cenová nabídka, potvrzení objednávky | co vám kdo nezávazně nabídl, s platností do data |
+
+Je to zásadní rozdíl: nabídková cena je nezávazná a může se od konečné faktury
+lišit. Kdyby se obojí míchalo, „nejlepší cena" by mohla být částka, kterou vám
+nikdo nikdy nenaúčtoval. Druh dokladu pozná aplikace sama z jeho záhlaví a při
+kontrole ho můžete přepsat.
+
+V kalkulaci se ve výchozím režimu počítá **platnou nabídkou, pokud je novější než
+poslední faktura** — za tu materiál skutečně koupíte. Jde přepnout na „jen
+fakturované" nebo „jen nabídkové" ceny; u každé částky je vidět zdroj.
 
 ## Co aplikace umí
 
 | Obrazovka | K čemu je |
 | --- | --- |
-| **Nahrát faktury** | Přetáhnete PDF (i víc najednou), Claude z nich přečte hlavičku a všechny řádky. |
-| **Faktury** | Kontrola a potvrzení. Dokud fakturu nepotvrdíte, do cen se nezapočítá. |
+| **Nahrát doklady** | Přetáhnete PDF (i víc najednou), Claude pozná druh dokladu a přečte hlavičku i všechny řádky. |
+| **Doklady** | Kontrola a potvrzení. Dokud doklad nepotvrdíte, do cen se nezapočítá. |
 | **Materiály a ceny** | Vyhledávání materiálu → srovnání cen mezi dodavateli + graf vývoje ceny. |
 | **Dodavatelé** | Kolik u koho odebíráme — podklad pro vyjednávání množstevních slev. |
 | **Kalkulace** | Poskládáte materiál na zakázku a spočítá se nákladová cena podle vašich skutečných cen. |
@@ -121,9 +139,10 @@ src/
 
 - **Ceny jsou vždy bez DPH a po slevě.** Když faktura uvádí jen cenu před
   slevou, dopočítá se z celkové částky za řádek.
-- **Různé měrné jednotky.** Pokud jeden dodavatel účtuje řezivo v m³ a druhý
-  v běžných metrech, aplikace na to u materiálu upozorní — ceny pak nejsou
-  přímo srovnatelné.
+- **Různé měrné jednotky.** Dodavatelé často prodávají v jiné jednotce, než ve
+  které tvoří cenu — „30 bal" a zároveň „630 m" s cenou za metr. Aplikace vždy
+  ukládá tu jednotku, ke které se vztahuje jednotková cena, protože jen ta je
+  srovnatelná. Když se jednotky u jednoho materiálu liší, upozorní na to.
 - **Kontrola se vyplatí.** Model čte i špatně naskenovaná PDF, ale u prvních
   faktur od nového dodavatele si projděte řádky pozorně. Co jednou potvrdíte,
   se používá i příště.

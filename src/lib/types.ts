@@ -23,6 +23,8 @@ export interface Invoice {
   id: number;
   supplier_id: number | null;
   supplier_name: string | null;
+  doc_type: string;
+  valid_until: string | null;
   invoice_number: string | null;
   variable_symbol: string | null;
   issue_date: string | null;
@@ -70,6 +72,9 @@ export interface SupplierPrice {
   supplier_id: number;
   supplier_name: string;
   unit: string | null;
+  doc_type: string | null;
+  valid_until: string | null;
+  expired: number;
   last_price: number | null;
   last_date: string | null;
   last_invoice_id: number;
@@ -88,9 +93,11 @@ export interface MaterialSummary {
   unit: string;
   suppliers: number;
   purchases: number;
-  last_price: number | null;
-  last_date: string | null;
-  best_price: number | null;
-  best_supplier: string | null;
+  best_invoiced: number | null;
+  best_invoiced_supplier: string | null;
+  last_invoiced_date: string | null;
+  best_offered: number | null;
+  best_offered_supplier: string | null;
+  last_offered_date: string | null;
   total_spent: number;
 }

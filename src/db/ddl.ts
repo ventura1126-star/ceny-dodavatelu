@@ -39,9 +39,14 @@ export const DDL: string[] = [
     UNIQUE (supplier_id, raw_normalized)
   )`,
 
+  // Tabulka se historicky jmenuje `invoices`, ale drží všechny typy dokladů —
+  // faktury, cenové nabídky, potvrzení objednávek i dodací listy. Rozlišuje je
+  // sloupec doc_type; nabídkové a fakturované ceny se nikde nemíchají.
   `CREATE TABLE IF NOT EXISTS invoices (
     id                  INTEGER PRIMARY KEY AUTOINCREMENT,
     supplier_id         INTEGER REFERENCES suppliers(id) ON DELETE SET NULL,
+    doc_type            TEXT NOT NULL DEFAULT 'faktura',
+    valid_until         TEXT,
     invoice_number      TEXT,
     variable_symbol     TEXT,
     issue_date          TEXT,
@@ -120,6 +125,17 @@ export const DDL: string[] = [
   `CREATE INDEX IF NOT EXISTS idx_items_norm      ON invoice_items (raw_normalized)`,
   `CREATE INDEX IF NOT EXISTS idx_invoices_supp   ON invoices (supplier_id, issue_date)`,
   `CREATE INDEX IF NOT EXISTS idx_invoices_status ON invoices (status)`,
+  `CREATE INDEX IF NOT EXISTS idx_invoices_type   ON invoices (doc_type)`,
   `CREATE INDEX IF NOT EXISTS idx_alias_lookup    ON material_aliases (supplier_id, raw_normalized)`,
   `CREATE INDEX IF NOT EXISTS idx_materials_cat   ON materials (category)`,
+];
+
+/**
+ * Sloupce doplňované do databází, které vznikly dřív, než přibyly typy dokladů.
+ * `CREATE TABLE IF NOT EXISTS` existující tabulku nezmění, proto tenhle seznam.
+ */
+export const COLUMN_MIGRATIONS: { table: string; column: string; definition: string }[] = [
+  { table: "invoices", column: "doc_type", definition: "TEXT NOT NULL DEFAULT 'faktura'" },
+  { table: "invoices", column: "valid_until", definition: "TEXT" },
+  { table: "calculation_items", column: "price_source", definition: "TEXT" },
 ];

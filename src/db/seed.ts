@@ -158,12 +158,76 @@ async function main() {
     }
   }
 
-  const counts = await one<{ invoices: number; items: number }>(
-    `SELECT (SELECT COUNT(*) FROM invoices) AS invoices, (SELECT COUNT(*) FROM invoice_items) AS items`,
+  // Ke každému dodavateli jedna čerstvá cenová nabídka — nabídkové ceny se
+  // v aplikaci vedou odděleně od fakturovaných, ať je co porovnávat.
+  const today = new Date().toISOString().slice(0, 10);
+  const validUntil = new Date(Date.now() + 45 * 86400000).toISOString().slice(0, 10);
+
+  for (let s = 0; s < supplierIds.length; s++) {
+    const picks = MATERIALS.map((m, i) => ({ m, i })).filter(() => random() > 0.4).slice(0, 6);
+    if (picks.length === 0) continue;
+
+    const lines = picks.map(({ m, i }, index) => {
+      const quantity = Math.round((10 + random() * 90) * 10) / 10;
+      // Nabídky bývají o něco výhodnější než poslední fakturovaná cena.
+      const unitPrice = Math.round(m.base * supplierBias[s] * (0.93 + random() * 0.08) * 100) / 100;
+      return {
+        lineNo: index + 1,
+        materialId: materialIds[i],
+        description: m.name,
+        unit: m.unit,
+        quantity,
+        unitPrice,
+        lineTotal: Math.round(quantity * unitPrice * 100) / 100,
+      };
+    });
+
+    const totalNet = Math.round(lines.reduce((a, l) => a + l.lineTotal, 0) * 100) / 100;
+    const offer = await run(
+      `INSERT INTO invoices
+         (supplier_id, doc_type, valid_until, invoice_number, issue_date, currency,
+          total_net, status, file_name, file_hash, confirmed_at)
+       VALUES (?, 'nabidka', ?, ?, ?, 'CZK', ?, 'confirmed', ?, ?, datetime('now'))`,
+      [
+        supplierIds[s],
+        validUntil,
+        `NAB-${2026}-${String(s + 1).padStart(3, "0")}`,
+        today,
+        totalNet,
+        `demo-nabidka-${s + 1}.pdf`,
+        `demo-hash-nabidka-${s + 1}`,
+      ],
+    );
+
+    for (const line of lines) {
+      await run(
+        `INSERT INTO invoice_items
+           (invoice_id, line_no, raw_description, raw_normalized, quantity, unit,
+            unit_price_net, line_total_net, vat_rate, material_id, match_source, is_material)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 21, ?, 'alias', 1)`,
+        [
+          offer.lastInsertRowid!,
+          line.lineNo,
+          line.description,
+          normalizeText(line.description),
+          line.quantity,
+          line.unit,
+          line.unitPrice,
+          line.lineTotal,
+          line.materialId,
+        ],
+      );
+    }
+  }
+
+  const counts = await one<{ faktury: number; nabidky: number; items: number }>(
+    `SELECT (SELECT COUNT(*) FROM invoices WHERE doc_type = 'faktura')  AS faktury,
+            (SELECT COUNT(*) FROM invoices WHERE doc_type = 'nabidka')  AS nabidky,
+            (SELECT COUNT(*) FROM invoice_items)                        AS items`,
   );
   console.log(
     `Hotovo: ${SUPPLIERS.length} dodavatelů, ${MATERIALS.length} materiálů, ` +
-      `${counts?.invoices} faktur, ${counts?.items} položek.`,
+      `${counts?.faktury} faktur, ${counts?.nabidky} nabídek, ${counts?.items} položek.`,
   );
   process.exit(0);
 }

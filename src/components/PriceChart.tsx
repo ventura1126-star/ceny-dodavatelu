@@ -16,21 +16,33 @@ export interface PricePoint {
   price_date: string;
   price: number;
   supplier_name: string;
+  track: "invoiced" | "offered";
 }
 
 const COLORS = ["#856442", "#2f7d63", "#8a5b8f", "#b06a2c", "#3b6ea5", "#a03a4a", "#5c7a3a"];
 
-/** Vývoj ceny materiálu v čase, jedna čára na dodavatele. */
+/**
+ * Vývoj ceny materiálu v čase — jedna čára na dvojici dodavatel + druh ceny.
+ * Nabídkové ceny jsou čárkovaně, ať je na první pohled vidět, co je závazné.
+ */
 export default function PriceChart({ points }: { points: PricePoint[] }) {
-  const suppliers = Array.from(new Set(points.map((p) => p.supplier_name)));
+  const series = Array.from(
+    new Set(
+      points.map((p) =>
+        p.track === "offered" ? `${p.supplier_name} (nabídka)` : p.supplier_name,
+      ),
+    ),
+  );
+  const keyOf = (p: PricePoint) =>
+    p.track === "offered" ? `${p.supplier_name} (nabídka)` : p.supplier_name;
   const dates = Array.from(new Set(points.map((p) => p.price_date))).sort();
 
-  // Recharts potřebuje jeden řádek na datum a sloupec na dodavatele.
+  // Recharts potřebuje jeden řádek na datum a sloupec na sérii.
   const data = dates.map((date) => {
     const row: Record<string, string | number | null> = { date };
-    for (const supplier of suppliers) {
-      const match = points.find((p) => p.price_date === date && p.supplier_name === supplier);
-      row[supplier] = match ? match.price : null;
+    for (const name of series) {
+      const match = points.find((p) => p.price_date === date && keyOf(p) === name);
+      row[name] = match ? match.price : null;
     }
     return row;
   });
@@ -64,13 +76,14 @@ export default function PriceChart({ points }: { points: PricePoint[] }) {
             contentStyle={{ fontSize: 12, borderRadius: 8, borderColor: "#e3d7c3" }}
           />
           <Legend wrapperStyle={{ fontSize: 12 }} />
-          {suppliers.map((supplier, i) => (
+          {series.map((name, i) => (
             <Line
-              key={supplier}
+              key={name}
               type="monotone"
-              dataKey={supplier}
+              dataKey={name}
               stroke={COLORS[i % COLORS.length]}
               strokeWidth={2}
+              strokeDasharray={name.endsWith("(nabídka)") ? "5 4" : undefined}
               dot={{ r: 3 }}
               connectNulls
             />

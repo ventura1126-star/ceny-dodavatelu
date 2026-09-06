@@ -15,6 +15,7 @@
     "@anthropic-ai/sdk": "^0.124.0",
     "@libsql/client": "^0.15.15",
     "next": "^15.5.4",
+    "pdfjs-dist": "^4.10.38",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "recharts": "^2.15.4",

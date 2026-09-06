@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import MaterialPicker, { type CatalogEntry } from "@/components/MaterialPicker";
 import { deleteInvoiceAction, reopenInvoice, saveInvoice, type ItemDecision } from "@/lib/actions";
+import { DOC_TYPES, DOC_TYPE_LABELS, type DocType } from "@/lib/doctypes";
 import { formatCzk } from "@/lib/format";
 import type { Invoice, InvoiceItem } from "@/lib/types";
 
@@ -32,6 +33,8 @@ export default function InvoiceReview({
   const [saved, setSaved] = useState<string | null>(null);
 
   const [supplierName, setSupplierName] = useState(invoice.supplier_name ?? "");
+  const [docType, setDocType] = useState<DocType>((invoice.doc_type as DocType) ?? "faktura");
+  const [validUntil, setValidUntil] = useState(invoice.valid_until ?? "");
   const [invoiceNumber, setInvoiceNumber] = useState(invoice.invoice_number ?? "");
   const [issueDate, setIssueDate] = useState(invoice.issue_date ?? "");
   const [project, setProject] = useState(invoice.project ?? "");
@@ -74,6 +77,8 @@ export default function InvoiceReview({
         invoice.id,
         {
           supplierName,
+          docType,
+          validUntil: validUntil || null,
           invoiceNumber: invoiceNumber || null,
           issueDate: issueDate || null,
           project: project || null,
@@ -104,7 +109,20 @@ export default function InvoiceReview({
         </div>
       ) : null}
 
-      <div className="grid gap-4 rounded-xl border border-bark-200 bg-white p-4 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="grid gap-4 rounded-xl border border-bark-200 bg-white p-4 sm:grid-cols-2 lg:grid-cols-6">
+        <Field label="Druh dokladu">
+          <select
+            value={docType}
+            onChange={(e) => setDocType(e.target.value as DocType)}
+            className="input"
+          >
+            {DOC_TYPES.map((t) => (
+              <option key={t} value={t}>
+                {DOC_TYPE_LABELS[t]}
+              </option>
+            ))}
+          </select>
+        </Field>
         <Field label="Dodavatel">
           <input
             value={supplierName}
@@ -127,8 +145,17 @@ export default function InvoiceReview({
             className="input"
           />
         </Field>
-        <Field label="Zakázka (nepovinné)">
-          <input value={project} onChange={(e) => setProject(e.target.value)} className="input" />
+        <Field label={docType === "faktura" || docType === "dodaci_list" ? "Zakázka (nepovinné)" : "Nabídka platí do"}>
+          {docType === "faktura" || docType === "dodaci_list" ? (
+            <input value={project} onChange={(e) => setProject(e.target.value)} className="input" />
+          ) : (
+            <input
+              type="date"
+              value={validUntil}
+              onChange={(e) => setValidUntil(e.target.value)}
+              className="input"
+            />
+          )}
         </Field>
         <Field label="Celkem bez DPH">
           <input
@@ -303,6 +330,13 @@ export default function InvoiceReview({
           Smazat fakturu
         </button>
       </div>
+
+      {docType === "nabidka" || docType === "potvrzeni" ? (
+        <p className="rounded-lg border border-sky-300 bg-sky-50 p-3 text-sm text-sky-900">
+          Tenhle doklad se uloží jako <strong>nezávazná cena</strong>. V přehledech se zobrazí
+          odděleně od fakturovaných cen a do „co jsme skutečně zaplatili" se nezapočítá.
+        </p>
+      ) : null}
 
       {unresolved > 0 ? (
         <p className="text-sm text-amber-800">
