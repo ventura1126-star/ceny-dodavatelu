@@ -1,5 +1,5 @@
 import { createClient, type Client, type InValue, type Row } from "@libsql/client";
-import { COLUMN_MIGRATIONS, DDL } from "./ddl";
+import { COLUMN_MIGRATIONS, INDEXES, TABLES } from "./ddl";
 
 let client: Client | null = null;
 let ready: Promise<void> | null = null;
@@ -27,9 +27,11 @@ export function ensureSchema(): Promise<void> {
     ready = (async () => {
       const c = db();
       await c.execute("PRAGMA foreign_keys = ON");
-      for (const statement of DDL) await c.execute(statement);
 
-      // Doplní sloupce, které v už existující databázi chybí.
+      // Pořadí je podstatné: tabulky → chybějící sloupce → teprve indexy.
+      // Index nad sloupcem, který se teprve doplňuje, by jinak start shodil.
+      for (const statement of TABLES) await c.execute(statement);
+
       for (const migration of COLUMN_MIGRATIONS) {
         const info = await c.execute(`PRAGMA table_info(${migration.table})`);
         const has = info.rows.some((row) => row.name === migration.column);
@@ -39,6 +41,8 @@ export function ensureSchema(): Promise<void> {
           );
         }
       }
+
+      for (const statement of INDEXES) await c.execute(statement);
     })().catch((err) => {
       ready = null;
       throw err;

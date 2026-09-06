@@ -5,7 +5,7 @@
  * takže stejný soubor funguje lokálně (file:./data/ceny.db) i na Turso, a při
  * nasazení není potřeba zvlášť pouštět migrace.
  */
-export const DDL: string[] = [
+export const TABLES: string[] = [
   `CREATE TABLE IF NOT EXISTS suppliers (
     id              INTEGER PRIMARY KEY AUTOINCREMENT,
     name            TEXT NOT NULL,
@@ -120,6 +120,13 @@ export const DDL: string[] = [
     position        INTEGER NOT NULL DEFAULT 0
   )`,
 
+];
+
+/**
+ * Indexy se zakládají až po doplnění chybějících sloupců — index nad sloupcem,
+ * který ve staré databázi ještě není, by jinak celý start shodil.
+ */
+export const INDEXES: string[] = [
   `CREATE INDEX IF NOT EXISTS idx_items_invoice   ON invoice_items (invoice_id)`,
   `CREATE INDEX IF NOT EXISTS idx_items_material  ON invoice_items (material_id)`,
   `CREATE INDEX IF NOT EXISTS idx_items_norm      ON invoice_items (raw_normalized)`,
