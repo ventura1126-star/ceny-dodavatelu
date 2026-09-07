@@ -4,7 +4,8 @@ import { createHash } from "node:crypto";
 import { one, run } from "@/db";
 import { extractInvoice } from "./extract";
 import { loadCatalog, matchMaterial } from "./matching";
-import { looksLikeNonMaterial, normalizeText } from "./normalize";
+import { CATEGORIES, looksLikeNonMaterial, normalizeText, stripDiacritics } from "./normalize";
+import { DOC_TYPES } from "./doctypes";
 import { normalizeUnit } from "./units";
 import { upsertSupplier } from "./repo";
 
@@ -24,6 +25,23 @@ export interface UploadOutcome {
 export function blank(value: string | null | undefined): string | null {
   const trimmed = value?.trim();
   return trimmed ? trimmed : null;
+}
+
+/** Porovnávací tvar pro zařazovací hodnoty — bez diakritiky, malými písmeny. */
+function loose(value: string): string {
+  return stripDiacritics(value.toLowerCase()).replace(/[^a-z0-9]/g, "");
+}
+
+/**
+ * Model dostane seznam povolených hodnot v popisu pole, ale zaručené to není.
+ * Hodnotu mimo seznam proto srovnáme na nejbližší známou, případně na výchozí.
+ * Špatně zařazená položka je věc na jedno kliknutí při kontrole — rozhodně to
+ * nesmí být důvod, proč se celý doklad nezpracuje.
+ */
+function nearest<T extends string>(value: string | undefined, allowed: readonly T[], fallback: T): T {
+  const needle = loose(value ?? "");
+  if (!needle) return fallback;
+  return allowed.find((option) => loose(option) === needle) ?? fallback;
 }
 
 /** Dopočítá jednotkovou cenu, když ji faktura uvádí jen jako součet za řádek. */
@@ -65,7 +83,9 @@ export async function processDocument(file: File): Promise<UploadOutcome> {
           fileName: file.name,
           ok: false,
           invoiceId: duplicate.id,
-          message: "Tenhle doklad už v systému máte — soubor je totožný.",
+          message:
+            "Úplně stejný soubor už v systému je — otevřete ho tlačítkem vedle. " +
+            "Mohl se tam dostat i z dřívějšího nahrávání, které se navenek tvářilo, že selhalo.",
         };
       }
 
@@ -87,7 +107,7 @@ export async function processDocument(file: File): Promise<UploadOutcome> {
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft', ?, ?, ?, ?, ?)`,
         [
           supplierId,
-          data.doc_type,
+          nearest(data.doc_type, DOC_TYPES, "faktura"),
           blank(data.valid_until),
           blank(data.invoice_number),
           blank(data.variable_symbol),
@@ -150,8 +170,8 @@ export async function processDocument(file: File): Promise<UploadOutcome> {
             match.source === "alias" ? match.materialId : null,
             match.materialId,
             item.material_name,
-            item.category,
-            item.canonical_unit,
+            nearest(item.category, CATEGORIES, "Ostatní"),
+            normalizeUnit(item.canonical_unit) ?? normalizeUnit(item.unit) ?? "ks",
             match.confidence,
             match.source,
             isMaterial ? 1 : 0,

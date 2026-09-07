@@ -1,5 +1,4 @@
 import * as z from "zod/v4";
-import { DOC_TYPES } from "./doctypes";
 import { CATEGORIES } from "./normalize";
 import { CANONICAL_UNITS } from "./units";
 
@@ -12,7 +11,12 @@ import { CANONICAL_UNITS } from "./units";
  * Pozor na limit: Anthropic API povolí nejvýš 16 parametrů s union typem
  * v celém schématu včetně vnořených položek, a `.nullable()` union vytváří.
  * Textová pole proto vracejí prázdný řetězec místo null; na null se převádějí
- * až při ukládání (funkce `blank` v actions.ts).
+ * až při ukládání (funkce `blank` v ingest.ts).
+ *
+ * Zařazovací pole (kategorie, jednotka, druh dokladu) jsou schválně obyčejné
+ * texty, ne výčty. Když model vrátí hodnotu mimo seznam, je to kosmetický
+ * detail k opravě při kontrole — nesmí to shodit čtení celého dokladu.
+ * Na známé hodnoty je převádí `ingest.ts`.
  */
 export const ItemSchema = z.object({
   line_no: z.number().int().describe("Pořadí položky na faktuře, od 1."),
@@ -52,15 +56,21 @@ export const ItemSchema = z.object({
     .describe(
       "Rozměr v milimetrech ve tvaru 60x120 nebo 19x121x4000. Prázdný řetězec, když z názvu nevyplývá.",
     ),
-  category: z.enum(CATEGORIES as unknown as [string, ...string[]]).describe("Kategorie materiálu."),
+  category: z
+    .string()
+    .describe(
+      `Kategorie materiálu, jedna z: ${CATEGORIES.join(", ")}. Když nic nesedí, napiš "Ostatní".`,
+    ),
   canonical_unit: z
-    .enum(CANONICAL_UNITS as unknown as [string, ...string[]])
-    .describe("Měrná jednotka převedená na kanonický tvar."),
+    .string()
+    .describe(
+      `Měrná jednotka převedená na kanonický tvar, jedna z: ${CANONICAL_UNITS.join(", ")}.`,
+    ),
 });
 
 export const InvoiceSchema = z.object({
   doc_type: z
-    .enum(DOC_TYPES as unknown as [string, ...string[]])
+    .string()
     .describe(
       "Druh dokladu: faktura (daňový doklad), nabidka (cenová nabídka), potvrzeni (potvrzení objednávky), dodaci_list.",
     ),

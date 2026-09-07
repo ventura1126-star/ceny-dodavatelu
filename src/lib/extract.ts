@@ -146,6 +146,9 @@ function explainApiError(err: unknown): string {
   if (status === 429 || /rate limit/i.test(message)) {
     return "Anthropic API je zahlcené. Zkuste to za chvíli, nebo nahrávejte doklady po menších dávkách.";
   }
+  if (/failed to parse structured output/i.test(message)) {
+    return "Model vrátil data v nečekaném tvaru a nepodařilo se je zpracovat. Zkuste doklad nahrát znovu — obvykle napodruhé projde. Když se to opakuje, dejte mi vědět, o který doklad jde.";
+  }
   if (/could not process image|unsupported|invalid.*pdf|corrupt/i.test(message)) {
     return "Soubor se nepodařilo přečíst — buď to není platné PDF, nebo je poškozené. Zkuste ho znovu vyexportovat.";
   }
