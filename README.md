@@ -145,6 +145,10 @@ src/
 
 ## Na co si dát pozor
 
+- **Do cen patří všechno nakoupené zboží**, ne jen stavební materiál — nářadí,
+  řezné kotouče, ochranné pomůcky, chemie i provozní materiál. Jejich cena se
+  u dodavatelů liší stejně jako u řeziva. Mimo ceny zůstávají jen řádky, které
+  nejsou zboží: doprava, manipulace, obaly, poplatky a zaokrouhlení.
 - **Ceny jsou vždy bez DPH a po slevě.** Když faktura uvádí jen cenu před
   slevou, dopočítá se z celkové částky za řádek.
 - **Různé měrné jednotky.** Dodavatelé často prodávají v jiné jednotce, než ve

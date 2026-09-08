@@ -9,6 +9,7 @@ export const CANONICAL_UNITS = [
   "l",
   "bal",
   "sada",
+  "par",
   "hod",
 ] as const;
 
@@ -24,6 +25,7 @@ const UNIT_MAP: Record<string, CanonicalUnit> = {
   l: "l", lt: "l", ltr: "l", litr: "l",
   bal: "bal", "bal.": "bal", baleni: "bal", balení: "bal", pack: "bal", karton: "bal", role: "bal", rol: "bal",
   sada: "sada", set: "sada", kpl: "sada", "kpl.": "sada", komplet: "sada",
+  par: "par", "pár": "par", paru: "par", "párů": "par", pair: "par",
   hod: "hod", hodina: "hod", "hod.": "hod", nh: "hod",
 };
 
@@ -39,5 +41,6 @@ export function displayUnit(raw: string | null | undefined): string {
   const c = normalizeUnit(raw);
   if (c === "m2") return "m²";
   if (c === "m3") return "m³";
+  if (c === "par") return "pár";
   return c ?? (raw?.trim() || "—");
 }

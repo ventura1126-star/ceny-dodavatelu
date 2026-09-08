@@ -77,7 +77,7 @@ export function similarity(a: string, b: string): number {
   return Math.max(0, Math.min(1, score));
 }
 
-/** Kategorie materiálu odpovídající tomu, co firma reálně nakupuje. */
+/** Kategorie odpovídající tomu, co firma reálně nakupuje — materiál i vybavení. */
 export const CATEGORIES = [
   "Řezivo a KVH",
   "Palubky a obklady",
@@ -94,20 +94,31 @@ export const CATEGORIES = [
   "Suchá výstavba",
   "Podlahy",
   "Zámečnické prvky",
+  "Nářadí a příslušenství",
+  "Ochranné pomůcky",
+  "Chemie a lepidla",
+  "Provozní materiál",
   "Doprava a služby",
   "Ostatní",
 ] as const;
 
 export type Category = (typeof CATEGORIES)[number];
 
-/** Položky, které nejsou materiál a nemají zkreslovat cenovou databázi. */
+/**
+ * Řádky, které nejsou nakoupené zboží a nemají zkreslovat cenovou databázi.
+ *
+ * Pozor na hranici: nářadí, ochranné pomůcky i provozní materiál (rukavice,
+ * holínky, vědro, řezné kotouče, pytle na odpad) do cen PATŘÍ — kupujete je
+ * a jejich cena se u dodavatelů liší stejně jako u řeziva. Sem patří jen to,
+ * co si domů neodvezete: doprava, manipulace, obaly, poplatky a zaokrouhlení.
+ */
 const NON_MATERIAL_PATTERNS = [
   /doprav/, /prepravn/, /manipulac/, /palet/, /vratn/, /zaokrouhlen/, /balne/,
   /poplatek/, /recyklacn/, /nakladk/, /vykladk/, /jerab/, /storno/, /zaloh/,
   /skladan/, /slozen/, /dovoz/, /expedic/, /pujcovn/, /najem/,
 ];
 
-export function looksLikeNonMaterial(raw: string): boolean {
+export function looksLikeNonGoods(raw: string): boolean {
   const s = normalizeText(raw);
   return NON_MATERIAL_PATTERNS.some((re) => re.test(s));
 }

@@ -170,7 +170,19 @@ export default function InvoiceReview({
         <table className="table-base">
           <thead>
             <tr>
-              <th className="w-10">Mat.</th>
+              <th className="w-14">
+                <span title="Zahrnout do cenové databáze">Do cen</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const target = !rows.every((r) => r.isMaterial);
+                    setRows((prev) => prev.map((r) => ({ ...r, isMaterial: target })));
+                  }}
+                  className="mt-0.5 block text-[10px] font-normal text-bark-500 underline hover:text-bark-800"
+                >
+                  vše
+                </button>
+              </th>
               <th className="min-w-[18rem]">Položka na faktuře</th>
               <th className="num w-24">Množství</th>
               <th className="w-20">MJ</th>
@@ -188,7 +200,7 @@ export default function InvoiceReview({
                     checked={row.isMaterial}
                     onChange={(e) => patch(row.id, { isMaterial: e.target.checked })}
                     className="h-4 w-4 accent-bark-700"
-                    title="Zahrnout do cenové databáze"
+                    title="Zahrnout do cenové databáze (materiál, nářadí i ochranné pomůcky)"
                   />
                 </td>
                 <td>
@@ -261,7 +273,9 @@ export default function InvoiceReview({
                       ) : null}
                     </div>
                   ) : (
-                    <span className="text-xs text-bark-500">nezapočítává se do cen</span>
+                    <span className="text-xs text-bark-500">
+                      nezapočítává se do cen — doprava, obaly, poplatky
+                    </span>
                   )}
                 </td>
               </tr>

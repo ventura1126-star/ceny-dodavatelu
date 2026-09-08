@@ -44,7 +44,10 @@ export const ItemSchema = z.object({
   is_material: z
     .boolean()
     .describe(
-      "true pro skutečný materiál. false pro dopravu, přepravné, manipulaci, palety, vratné obaly, balné, recyklační poplatky, zaokrouhlení a zálohy.",
+      "true pro každé nakoupené zboží — stavební materiál, ale i nářadí, řezné kotouče, " +
+        "ochranné pomůcky (rukavice, holínky, přilby), chemii, lepidla a provozní materiál " +
+        "(vědro, pytle na odpad). false jen pro řádky, které nejsou zboží: dopravu, přepravné, " +
+        "manipulaci, skládání, palety, vratné obaly, balné, recyklační poplatky, zaokrouhlení a zálohy.",
     ),
   material_name: z
     .string()

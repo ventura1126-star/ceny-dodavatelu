@@ -4,7 +4,7 @@ import { createHash } from "node:crypto";
 import { one, run } from "@/db";
 import { extractInvoice } from "./extract";
 import { loadCatalog, matchMaterial } from "./matching";
-import { CATEGORIES, looksLikeNonMaterial, normalizeText, stripDiacritics } from "./normalize";
+import { CATEGORIES, looksLikeNonGoods, normalizeText, stripDiacritics } from "./normalize";
 import { DOC_TYPES } from "./doctypes";
 import { normalizeUnit } from "./units";
 import { upsertSupplier } from "./repo";
@@ -136,8 +136,9 @@ export async function processDocument(file: File): Promise<UploadOutcome> {
 
       const catalog = await loadCatalog();
       for (const item of data.items) {
-        const isMaterial = item.is_material && !looksLikeNonMaterial(item.description);
-        const match = isMaterial
+        // Do cen jde všechno nakoupené zboží — materiál, nářadí i ochranné pomůcky.
+        const isGoods = item.is_material && !looksLikeNonGoods(item.description);
+        const match = isGoods
           ? await matchMaterial(
               supplierId,
               item.description,
@@ -174,7 +175,7 @@ export async function processDocument(file: File): Promise<UploadOutcome> {
             normalizeUnit(item.canonical_unit) ?? normalizeUnit(item.unit) ?? "ks",
             match.confidence,
             match.source,
-            isMaterial ? 1 : 0,
+            isGoods ? 1 : 0,
           ],
         );
       }
