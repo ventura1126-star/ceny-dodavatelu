@@ -160,9 +160,13 @@ src/
   nikde nemíchají**: jednotka je součástí identity ceny, každá má na kartě
   materiálu vlastní tabulku a označení „nejlevnější" platí vždy jen uvnitř jedné
   jednotky. Souhrny nahoře a v hledání počítají s tou jednotkou, ve které máte
-  nejvíc dokladů, a na existenci ostatních upozorní. Aplikace zatím **nepřepočítává**
-  balení na m² — k tomu by potřebovala znát obsah balení, který na dokladech
-  bývá jen v poznámce.
+  nejvíc dokladů, a na existenci ostatních upozorní.
+
+  **Přepočet mezi jednotkami aplikace vědomě nedělá** a dělat nebude. Obsah
+  balení bývá na dokladech jen v poznámce za názvem (`(role/7,5m2)`), takže by
+  se musel odhadovat — a špatný přepočet je horší než žádný, protože vypadá
+  věrohodně. Ceny se ukazují tak, jak je dodavatel naúčtoval; přepočet zůstává
+  na člověku, který zná zboží.
 - **Kontrola se vyplatí.** Model čte i špatně naskenovaná PDF, ale u prvních
   faktur od nového dodavatele si projděte řádky pozorně. Co jednou potvrdíte,
   se používá i příště.
