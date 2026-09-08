@@ -11,12 +11,14 @@ import {
   YAxis,
 } from "recharts";
 import { formatCzk, formatDate } from "@/lib/format";
+import { displayUnit } from "@/lib/units";
 
 export interface PricePoint {
   price_date: string;
   price: number;
   supplier_name: string;
   track: "invoiced" | "offered";
+  unit: string | null;
 }
 
 const COLORS = ["#856442", "#2f7d63", "#8a5b8f", "#b06a2c", "#3b6ea5", "#a03a4a", "#5c7a3a"];
@@ -26,15 +28,14 @@ const COLORS = ["#856442", "#2f7d63", "#8a5b8f", "#b06a2c", "#3b6ea5", "#a03a4a"
  * Nabídkové ceny jsou čárkovaně, ať je na první pohled vidět, co je závazné.
  */
 export default function PriceChart({ points }: { points: PricePoint[] }) {
-  const series = Array.from(
-    new Set(
-      points.map((p) =>
-        p.track === "offered" ? `${p.supplier_name} (nabídka)` : p.supplier_name,
-      ),
-    ),
-  );
-  const keyOf = (p: PricePoint) =>
-    p.track === "offered" ? `${p.supplier_name} (nabídka)` : p.supplier_name;
+  // Když se u materiálu míchají jednotky, musí být v názvu série — jinak by
+  // graf svedl dohromady cenu za m² a za balení.
+  const mixedUnits = new Set(points.map((p) => p.unit ?? "?")).size > 1;
+  const keyOf = (p: PricePoint) => {
+    const base = p.track === "offered" ? `${p.supplier_name} (nabídka)` : p.supplier_name;
+    return mixedUnits ? `${base} / ${displayUnit(p.unit)}` : base;
+  };
+  const series = Array.from(new Set(points.map(keyOf)));
   const dates = Array.from(new Set(points.map((p) => p.price_date))).sort();
 
   // Recharts potřebuje jeden řádek na datum a sloupec na sérii.
@@ -83,7 +84,7 @@ export default function PriceChart({ points }: { points: PricePoint[] }) {
               dataKey={name}
               stroke={COLORS[i % COLORS.length]}
               strokeWidth={2}
-              strokeDasharray={name.endsWith("(nabídka)") ? "5 4" : undefined}
+              strokeDasharray={name.includes("(nabídka)") ? "5 4" : undefined}
               dot={{ r: 3 }}
               connectNulls
             />

@@ -154,7 +154,15 @@ src/
 - **Různé měrné jednotky.** Dodavatelé často prodávají v jiné jednotce, než ve
   které tvoří cenu — „30 bal" a zároveň „630 m" s cenou za metr. Aplikace vždy
   ukládá tu jednotku, ke které se vztahuje jednotková cena, protože jen ta je
-  srovnatelná. Když se jednotky u jednoho materiálu liší, upozorní na to.
+  srovnatelná.
+
+  Když stejný materiál účtuje jeden dodavatel za m² a druhý za balení, **ceny se
+  nikde nemíchají**: jednotka je součástí identity ceny, každá má na kartě
+  materiálu vlastní tabulku a označení „nejlevnější" platí vždy jen uvnitř jedné
+  jednotky. Souhrny nahoře a v hledání počítají s tou jednotkou, ve které máte
+  nejvíc dokladů, a na existenci ostatních upozorní. Aplikace zatím **nepřepočítává**
+  balení na m² — k tomu by potřebovala znát obsah balení, který na dokladech
+  bývá jen v poznámce.
 - **Kontrola se vyplatí.** Model čte i špatně naskenovaná PDF, ale u prvních
   faktur od nového dodavatele si projděte řádky pozorně. Co jednou potvrdíte,
   se používá i příště.

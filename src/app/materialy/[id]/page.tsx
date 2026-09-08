@@ -26,17 +26,23 @@ export default async function MaterialDetailPage({
     getPriceHistory(materialId),
   ]);
 
-  const bestInvoiced = invoiced[0] ?? null;
-  const validOffers = offered.filter((o) => !o.expired);
-  const bestOffered = validOffers[0] ?? null;
+  // Ceny jdou porovnávat jen v rámci jedné jednotky. Souhrnné údaje nahoře proto
+  // počítáme z té nejpoužívanější a na ostatní upozorníme zvlášť.
+  const unitCounts = new Map<string, number>();
+  for (const row of [...invoiced, ...offered]) {
+    unitCounts.set(row.unit_key, (unitCounts.get(row.unit_key) ?? 0) + row.purchases);
+  }
+  const allUnits = [...unitCounts.keys()];
+  const mainUnit = allUnits.sort((a, b) => (unitCounts.get(b) ?? 0) - (unitCounts.get(a) ?? 0))[0];
 
-  const allUnits = Array.from(
-    new Set([...invoiced, ...offered].map((p) => p.unit).filter(Boolean)),
-  );
+  const mainInvoiced = invoiced.filter((p) => p.unit_key === mainUnit);
+  const mainOffered = offered.filter((p) => p.unit_key === mainUnit && !p.expired);
+  const bestInvoiced = mainInvoiced[0] ?? null;
+  const bestOffered = mainOffered[0] ?? null;
 
   const spread =
-    invoiced.length > 1 && bestInvoiced?.last_price
-      ? ((invoiced[invoiced.length - 1].last_price! - bestInvoiced.last_price) /
+    mainInvoiced.length > 1 && bestInvoiced?.last_price
+      ? ((mainInvoiced[mainInvoiced.length - 1].last_price! - bestInvoiced.last_price) /
           bestInvoiced.last_price) *
         100
       : null;
@@ -62,7 +68,7 @@ export default async function MaterialDetailPage({
           value={bestInvoiced?.last_price ? formatCzk(bestInvoiced.last_price) : "—"}
           hint={
             bestInvoiced
-              ? `${bestInvoiced.supplier_name} · ${formatDate(bestInvoiced.last_date)}`
+              ? `${bestInvoiced.supplier_name} za ${displayUnit(bestInvoiced.unit)} · ${formatDate(bestInvoiced.last_date)}`
               : "zatím žádná faktura"
           }
         />
@@ -71,7 +77,7 @@ export default async function MaterialDetailPage({
           value={bestOffered?.last_price ? formatCzk(bestOffered.last_price) : "—"}
           hint={
             bestOffered
-              ? `${bestOffered.supplier_name} · ${formatDate(bestOffered.last_date)}`
+              ? `${bestOffered.supplier_name} za ${displayUnit(bestOffered.unit)} · ${formatDate(bestOffered.last_date)}`
               : "žádná platná nabídka"
           }
         />
@@ -82,7 +88,7 @@ export default async function MaterialDetailPage({
               ? `${spread.toLocaleString("cs-CZ", { maximumFractionDigits: 1 })} %`
               : "—"
           }
-          hint={spread !== null ? "u fakturovaných cen" : undefined}
+          hint={spread !== null ? `u fakturovaných cen za ${displayUnit(mainUnit)}` : undefined}
         />
         <Stat
           label="Celkem odebráno"
@@ -93,8 +99,10 @@ export default async function MaterialDetailPage({
 
       {allUnits.length > 1 ? (
         <div className="mt-4 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
-          Pozor: doklady u tohohle materiálu používají různé jednotky ({allUnits.join(", ")}).
-          Ceny níž proto nejsou přímo srovnatelné.
+          <strong>Tenhle materiál se nakupuje ve víc jednotkách</strong> (
+          {allUnits.map((u) => displayUnit(u)).join(", ")}). Ceny v různých jednotkách spolu nejde
+          porovnávat, takže jsou v tabulkách níž oddělené a souhrn nahoře počítá jen s jednotkou{" "}
+          <strong>{displayUnit(mainUnit)}</strong>, ve které máte dokladů nejvíc.
         </div>
       ) : null}
 
@@ -133,11 +141,62 @@ function PriceTable({
   track: PriceTrack;
   empty: string;
 }) {
+  // Každá jednotka dostane vlastní tabulku — porovnávat 145 Kč/m² s 1 100 Kč/bal
+  // nedává smysl a společná tabulka by k tomu sváděla.
+  const byUnit = new Map<string, SupplierPrice[]>();
+  for (const row of rows) {
+    if (!byUnit.has(row.unit_key)) byUnit.set(row.unit_key, []);
+    byUnit.get(row.unit_key)!.push(row);
+  }
+  const groups = [...byUnit.entries()].sort((a, b) => b[1].length - a[1].length);
+
+  if (groups.length === 0) {
+    return (
+      <>
+        <h2 className="mb-3 mt-8 text-sm font-semibold uppercase tracking-wide text-bark-600">
+          {title}
+        </h2>
+        <Card className="p-6 text-center text-sm text-bark-600">{empty}</Card>
+      </>
+    );
+  }
+
   return (
     <>
       <h2 className="mb-3 mt-8 text-sm font-semibold uppercase tracking-wide text-bark-600">
         {title}
       </h2>
+      {groups.map(([unitKey, unitRows]) => (
+        <UnitTable
+          key={unitKey}
+          unitKey={unitKey}
+          rows={unitRows}
+          track={track}
+          showUnitHeading={groups.length > 1}
+        />
+      ))}
+    </>
+  );
+}
+
+function UnitTable({
+  unitKey,
+  rows,
+  track,
+  showUnitHeading,
+}: {
+  unitKey: string;
+  rows: SupplierPrice[];
+  track: PriceTrack;
+  showUnitHeading: boolean;
+}) {
+  return (
+    <>
+      {showUnitHeading ? (
+        <p className="mb-2 mt-4 text-sm font-medium text-bark-700">
+          Účtováno za {displayUnit(unitKey)}
+        </p>
+      ) : null}
       <Card className="overflow-x-auto">
         <table className="table-base">
           <thead>
@@ -209,13 +268,6 @@ function PriceTable({
                 </td>
               </tr>
             ))}
-            {rows.length === 0 ? (
-              <tr>
-                <td colSpan={9} className="py-6 text-center text-sm text-bark-600">
-                  {empty}
-                </td>
-              </tr>
-            ) : null}
           </tbody>
         </table>
       </Card>

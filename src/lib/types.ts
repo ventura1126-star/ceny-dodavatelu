@@ -73,6 +73,7 @@ export interface SupplierPrice {
   supplier_id: number;
   supplier_name: string;
   unit: string | null;
+  unit_key: string;
   doc_type: string | null;
   valid_until: string | null;
   expired: number;
@@ -94,6 +95,7 @@ export interface MaterialSummary {
   unit: string;
   suppliers: number;
   purchases: number;
+  mixed_units: number;
   best_invoiced: number | null;
   best_invoiced_supplier: string | null;
   last_invoiced_date: string | null;

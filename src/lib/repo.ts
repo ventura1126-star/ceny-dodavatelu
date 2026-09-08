@@ -128,8 +128,12 @@ const OFFERED_SQL = "i.doc_type IN ('nabidka', 'potvrzeni')";
  * Společný poddotaz: každá potvrzená položka dokladu s cenou.
  *
  * `track` dělí ceny na dvě větve, které se nikdy nesčítají — fakturováno (co
- * jste zaplatili) a nabídnuto (co vám kdo nezávazně nabídl). Pořadí `rn` se
- * počítá zvlášť v každé větvi, takže "poslední cena" existuje pro obě.
+ * jste zaplatili) a nabídnuto (co vám kdo nezávazně nabídl).
+ *
+ * Součástí klíče je i JEDNOTKA. Stejný materiál umí jeden dodavatel účtovat za
+ * m² a druhý za balení; 145 Kč/m² a 1 100 Kč/bal spolu nemají co srovnávat.
+ * `rn` se proto počítá zvlášť pro každou trojici dodavatel + větev + jednotka
+ * a nikde se ceny přes jednotky nemíchají.
  */
 const PRICE_POINTS = `
   SELECT ii.material_id            AS material_id,
@@ -141,13 +145,14 @@ const PRICE_POINTS = `
          CASE WHEN ${OFFERED_SQL} AND i.valid_until IS NOT NULL AND i.valid_until < date('now')
               THEN 1 ELSE 0 END    AS expired,
          ii.unit                   AS unit,
+         COALESCE(ii.unit, '?')    AS unit_key,
          ii.unit_price_net         AS price,
          ii.quantity               AS quantity,
          ii.line_total_net         AS line_total,
          COALESCE(i.issue_date, date(i.created_at)) AS price_date,
          i.id                      AS invoice_id,
          ROW_NUMBER() OVER (
-           PARTITION BY ii.material_id, i.supplier_id,
+           PARTITION BY ii.material_id, i.supplier_id, COALESCE(ii.unit, '?'),
                         CASE WHEN ${OFFERED_SQL} THEN 'offered' ELSE 'invoiced' END
            ORDER BY COALESCE(i.issue_date, date(i.created_at)) DESC, ii.id DESC
          ) AS rn
@@ -170,6 +175,7 @@ export function getSupplierPrices(
     `WITH pp AS (${PRICE_POINTS})
      SELECT supplier_id,
             supplier_name,
+            unit_key,
             MAX(CASE WHEN rn = 1 THEN unit END)        AS unit,
             MAX(CASE WHEN rn = 1 THEN price END)       AS last_price,
             MAX(CASE WHEN rn = 1 THEN price_date END)  AS last_date,
@@ -185,8 +191,8 @@ export function getSupplierPrices(
             ROUND(COALESCE(SUM(quantity), 0), 3)       AS total_quantity
      FROM pp
      WHERE material_id = ? AND track = ?
-     GROUP BY supplier_id, supplier_name
-     ORDER BY last_price ASC`,
+     GROUP BY supplier_id, supplier_name, unit_key
+     ORDER BY unit_key, last_price ASC`,
     [materialId, track],
   );
 }
@@ -211,6 +217,22 @@ export function getPriceHistory(materialId: number) {
   );
 }
 
+/**
+ * Nejčastěji používaná jednotka daného materiálu.
+ *
+ * Ceny se dají porovnávat jen v rámci jedné jednotky, takže do přehledů vybíráme
+ * tu, ve které je nejvíc dokladů. Existenci ostatních hlásíme přes `mixed_units`,
+ * ať je poznat, že přehled ukazuje jen část.
+ */
+const MAIN_UNIT = `
+  SELECT material_id, unit_key,
+         ROW_NUMBER() OVER (
+           PARTITION BY material_id ORDER BY COUNT(*) DESC, MAX(price_date) DESC, unit_key
+         ) AS urn
+  FROM pp
+  GROUP BY material_id, unit_key
+`;
+
 /** Vyhledávání materiálů — hlavní vstup uživatele ("zadám typ materiálu"). */
 export function searchMaterials(query: string, category?: string): Promise<MaterialSummary[]> {
   const q = normalizeText(query);
@@ -226,23 +248,28 @@ export function searchMaterials(query: string, category?: string): Promise<Mater
 
   return all<MaterialSummary>(
     `WITH pp AS (${PRICE_POINTS}),
-          latest AS (SELECT * FROM pp WHERE rn = 1)
-     SELECT m.id, m.name, m.category, m.unit,
+          latest AS (SELECT * FROM pp WHERE rn = 1),
+          main AS (${MAIN_UNIT})
+     SELECT m.id, m.name, m.category,
+            COALESCE((SELECT unit_key FROM main WHERE main.material_id = m.id AND urn = 1), m.unit)
+                                                    AS unit,
+            (SELECT COUNT(DISTINCT unit_key) > 1 FROM pp p2 WHERE p2.material_id = m.id)
+                                                    AS mixed_units,
             COUNT(DISTINCT pp.supplier_id)          AS suppliers,
             COUNT(pp.invoice_id)                    AS purchases,
-            (SELECT MIN(l.price) FROM latest l
+            (SELECT MIN(l.price) FROM latest l JOIN main ON main.material_id = l.material_id AND main.unit_key = l.unit_key AND main.urn = 1
               WHERE l.material_id = m.id AND l.track = 'invoiced')            AS best_invoiced,
-            (SELECT l.supplier_name FROM latest l
+            (SELECT l.supplier_name FROM latest l JOIN main ON main.material_id = l.material_id AND main.unit_key = l.unit_key AND main.urn = 1
               WHERE l.material_id = m.id AND l.track = 'invoiced'
               ORDER BY l.price ASC LIMIT 1)                                   AS best_invoiced_supplier,
-            (SELECT MAX(l.price_date) FROM latest l
+            (SELECT MAX(l.price_date) FROM latest l JOIN main ON main.material_id = l.material_id AND main.unit_key = l.unit_key AND main.urn = 1
               WHERE l.material_id = m.id AND l.track = 'invoiced')            AS last_invoiced_date,
-            (SELECT MIN(l.price) FROM latest l
+            (SELECT MIN(l.price) FROM latest l JOIN main ON main.material_id = l.material_id AND main.unit_key = l.unit_key AND main.urn = 1
               WHERE l.material_id = m.id AND l.track = 'offered' AND l.expired = 0) AS best_offered,
-            (SELECT l.supplier_name FROM latest l
+            (SELECT l.supplier_name FROM latest l JOIN main ON main.material_id = l.material_id AND main.unit_key = l.unit_key AND main.urn = 1
               WHERE l.material_id = m.id AND l.track = 'offered' AND l.expired = 0
               ORDER BY l.price ASC LIMIT 1)                                   AS best_offered_supplier,
-            (SELECT MAX(l.price_date) FROM latest l
+            (SELECT MAX(l.price_date) FROM latest l JOIN main ON main.material_id = l.material_id AND main.unit_key = l.unit_key AND main.urn = 1
               WHERE l.material_id = m.id AND l.track = 'offered')             AS last_offered_date,
             ROUND(COALESCE(SUM(pp.line_total), 0), 2) AS total_spent
      FROM materials m
@@ -344,6 +371,7 @@ export function getPriceAlerts(limit = 12) {
      JOIN pp b ON b.material_id = a.material_id
                AND b.supplier_id = a.supplier_id
                AND b.track = a.track
+               AND b.unit_key = a.unit_key
                AND b.rn = 2
      JOIN materials m ON m.id = a.material_id
      WHERE a.rn = 1 AND a.track = 'invoiced' AND b.track = 'invoiced'
@@ -454,20 +482,24 @@ export function getCalculationItems(calculationId: number) {
     last_offered_date: string | null;
   }>(
     `WITH pp AS (${PRICE_POINTS}),
-          latest AS (SELECT * FROM pp WHERE rn = 1)
+          latest AS (SELECT * FROM pp WHERE rn = 1),
+          main AS (${MAIN_UNIT})
      SELECT ci.id, ci.material_id, ci.label, ci.quantity,
-            COALESCE(m.unit, ci.unit) AS unit,
-            (SELECT MIN(l.price) FROM latest l
+            COALESCE(
+              (SELECT unit_key FROM main WHERE main.material_id = ci.material_id AND urn = 1),
+              m.unit, ci.unit
+            ) AS unit,
+            (SELECT MIN(l.price) FROM latest l JOIN main ON main.material_id = l.material_id AND main.unit_key = l.unit_key AND main.urn = 1
               WHERE l.material_id = ci.material_id AND l.track = 'invoiced')  AS best_invoiced,
-            (SELECT l.supplier_name FROM latest l
+            (SELECT l.supplier_name FROM latest l JOIN main ON main.material_id = l.material_id AND main.unit_key = l.unit_key AND main.urn = 1
               WHERE l.material_id = ci.material_id AND l.track = 'invoiced'
               ORDER BY l.price ASC LIMIT 1)                                   AS best_invoiced_supplier,
             (SELECT MAX(l.price_date) FROM latest l
               WHERE l.material_id = ci.material_id AND l.track = 'invoiced')  AS last_invoiced_date,
-            (SELECT MIN(l.price) FROM latest l
+            (SELECT MIN(l.price) FROM latest l JOIN main ON main.material_id = l.material_id AND main.unit_key = l.unit_key AND main.urn = 1
               WHERE l.material_id = ci.material_id AND l.track = 'offered'
                 AND l.expired = 0)                                            AS best_offered,
-            (SELECT l.supplier_name FROM latest l
+            (SELECT l.supplier_name FROM latest l JOIN main ON main.material_id = l.material_id AND main.unit_key = l.unit_key AND main.urn = 1
               WHERE l.material_id = ci.material_id AND l.track = 'offered' AND l.expired = 0
               ORDER BY l.price ASC LIMIT 1)                                   AS best_offered_supplier,
             (SELECT MAX(l.price_date) FROM latest l

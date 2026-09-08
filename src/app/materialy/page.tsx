@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import SearchForm from "@/components/SearchForm";
 import { Card, Empty, PageTitle } from "@/components/ui";
 import { formatCzk, formatDate } from "@/lib/format";
+import { displayUnit } from "@/lib/units";
 import { CATEGORIES } from "@/lib/normalize";
 import { searchMaterials } from "@/lib/repo";
 
@@ -61,18 +62,26 @@ export default async function MaterialsPage({
                     <Link href={`/materialy/${m.id}`} className="font-medium hover:underline">
                       {m.name}
                     </Link>
+                    {m.mixed_units ? (
+                      <div
+                        className="text-xs text-amber-700"
+                        title="Dodavatelé účtují tenhle materiál ve víc jednotkách. Ceny níž jsou jen za nejčastější z nich."
+                      >
+                        více jednotek — ceny jen za {displayUnit(m.unit)}
+                      </div>
+                    ) : null}
                   </td>
                   <td className="text-bark-600">{m.category}</td>
                   <td className="num">{m.suppliers || "—"}</td>
                   <td className="num font-medium">
-                    {m.best_invoiced !== null ? `${formatCzk(m.best_invoiced)} / ${m.unit}` : "—"}
+                    {m.best_invoiced !== null ? `${formatCzk(m.best_invoiced)} / ${displayUnit(m.unit)}` : "—"}
                   </td>
                   <td className="text-bark-700">
                     {m.best_invoiced_supplier ?? "—"}
                     <div className="text-xs text-bark-500">{formatDate(m.last_invoiced_date)}</div>
                   </td>
                   <td className="num font-medium text-sky-800">
-                    {m.best_offered !== null ? `${formatCzk(m.best_offered)} / ${m.unit}` : "—"}
+                    {m.best_offered !== null ? `${formatCzk(m.best_offered)} / ${displayUnit(m.unit)}` : "—"}
                   </td>
                   <td className="text-bark-700">
                     {m.best_offered_supplier ?? "—"}
