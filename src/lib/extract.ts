@@ -41,7 +41,18 @@ Z přiloženého PDF vytěž hlavičku dokladu a VŠECHNY fakturované řádky. 
     do určitého data — to datum vrať v valid_until.
 11. Dodavatelé často účtují v jiné jednotce, než ve které prodávají: například
     "30 bal" a zároveň "630 m" s cenou za metr. Vždy vrať tu jednotku a množství,
-    ke kterým se vztahuje jednotková cena — tedy 630 a "m", ne 30 a "bal".`;
+    ke kterým se vztahuje jednotková cena — tedy 630 a "m", ne 30 a "bal".
+12. ROZMĚRY BÝVAJÍ VE VLASTNÍCH SLOUPCÍCH, ne v názvu. Některé doklady (typicky
+    JAF HOLZ) mají tabulku ve tvaru:
+        Poz. | Art.č. | Označení | Tl. | Délka | Šířka | Množství MJ | Cena | Sleva | Suma
+        0010 55522/0242 DESKY HOBLOVANE SEV.SMRK A/B  18,00  4.200  145  25,00 KS  483,00 -39% 4.485,74
+    Tady je tloušťka 18 mm, délka 4200 mm a šířka 145 mm — v názvu položky nejsou.
+    Když doklad rozměry uvádí zvlášť, slož je do dimensions ve tvaru
+    tloušťka x šířka x délka v milimetrech (tedy 18x145x4200) a ZAROVEŇ je připoj
+    na konec material_name, aby se materiál dal odlišit od jiných rozměrů.
+    Pozor na zápis čísel: "4.200" je 4200 mm (tečka odděluje tisíce), "18,00" je 18.
+    Desetinná místa vynech, když jsou nulová. Když je rozměr jen dvojrozměrný
+    (například u hranolů 60x120), vrať dimensions jako 60x120.`;
 
 export interface ExtractResult {
   data: ExtractedInvoice;

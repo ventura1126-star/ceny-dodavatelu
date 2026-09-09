@@ -57,7 +57,9 @@ export const ItemSchema = z.object({
   dimensions: z
     .string()
     .describe(
-      "Rozměr v milimetrech ve tvaru 60x120 nebo 19x121x4000. Prázdný řetězec, když z názvu nevyplývá.",
+      "Rozměr v milimetrech ve tvaru tloušťka x šířka x délka (60x120, 18x145x4200). " +
+        "Sestav ho i ze samostatných sloupců Tl. / Délka / Šířka, když doklad rozměry " +
+        "neuvádí v názvu. Prázdný řetězec, když se rozměr nedá zjistit.",
     ),
   category: z
     .string()

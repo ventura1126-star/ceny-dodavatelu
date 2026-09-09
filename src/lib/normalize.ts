@@ -122,3 +122,43 @@ export function looksLikeNonGoods(raw: string): boolean {
   const s = normalizeText(raw);
   return NON_MATERIAL_PATTERNS.some((re) => re.test(s));
 }
+
+/**
+ * Srovná zápis rozměru na jednotný tvar: "18,00 × 145 × 4.200" → "18x145x4200".
+ *
+ * Doklady píšou čísla po česku — tečka odděluje tisíce, čárka desetiny — takže
+ * "4.200" jsou 4200 mm, ne 4,2. Vrací null, když z toho rozměr nevyleze.
+ */
+export function normalizeDimensions(raw: string | null | undefined): string | null {
+  if (!raw?.trim()) return null;
+  const parts = raw
+    .toLowerCase()
+    .replace(/[×*]/g, "x")
+    .split("x")
+    .map((part) => part.replace(/[^0-9.,]/g, "").trim())
+    .filter(Boolean);
+  if (parts.length < 2) return null;
+
+  const numbers = parts.map((part) => {
+    const value = Number(part.replace(/\.(?=\d{3}\b)/g, "").replace(",", "."));
+    if (!Number.isFinite(value) || value <= 0) return null;
+    return Number.isInteger(value) ? String(value) : String(value).replace(".", ",");
+  });
+  if (numbers.some((n) => n === null)) return null;
+  return numbers.join("x");
+}
+
+/**
+ * Doplní rozměr do názvu materiálu, když v něm ještě není.
+ *
+ * Někteří dodavatelé (JAF HOLZ) mají rozměry ve vlastních sloupcích, takže
+ * z názvu položky nejsou poznat — a bez rozměru by prkno 18x145 splynulo
+ * v katalogu s prknem 24x145 a ceny by se míchaly.
+ */
+export function withDimensions(name: string, dimensions: string | null | undefined): string {
+  const dims = normalizeDimensions(dimensions);
+  if (!dims) return name.trim();
+  const haystack = normalizeText(name).replace(/\s+/g, "");
+  if (haystack.includes(normalizeText(dims).replace(/\s+/g, ""))) return name.trim();
+  return `${name.trim()} ${dims}`.trim();
+}

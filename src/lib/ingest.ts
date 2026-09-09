@@ -4,7 +4,13 @@ import { createHash } from "node:crypto";
 import { one, run } from "@/db";
 import { extractInvoice } from "./extract";
 import { loadCatalog, matchMaterial } from "./matching";
-import { CATEGORIES, looksLikeNonGoods, normalizeText, stripDiacritics } from "./normalize";
+import {
+  CATEGORIES,
+  looksLikeNonGoods,
+  normalizeText,
+  stripDiacritics,
+  withDimensions,
+} from "./normalize";
 import { DOC_TYPES } from "./doctypes";
 import { normalizeUnit } from "./units";
 import { upsertSupplier } from "./repo";
@@ -138,11 +144,17 @@ export async function processDocument(file: File): Promise<UploadOutcome> {
       for (const item of data.items) {
         // Do cen jde všechno nakoupené zboží — materiál, nářadí i ochranné pomůcky.
         const isGoods = item.is_material && !looksLikeNonGoods(item.description);
+
+        // Někteří dodavatelé mají rozměry ve vlastních sloupcích, ne v názvu.
+        // Bez rozměru by prkno 18x145 splynulo v katalogu s prknem 24x145,
+        // takže ho do názvu doplníme i v případě, že ho tam model nedal.
+        const materialName = withDimensions(item.material_name, item.dimensions);
+
         const match = isGoods
           ? await matchMaterial(
               supplierId,
               item.description,
-              item.material_name,
+              materialName,
               blank(item.catalog_code),
               catalog,
             )
@@ -170,7 +182,7 @@ export async function processDocument(file: File): Promise<UploadOutcome> {
             // Alias je jistota — ten se propíše rovnou. Fuzzy shoda je jen návrh.
             match.source === "alias" ? match.materialId : null,
             match.materialId,
-            item.material_name,
+            materialName,
             nearest(item.category, CATEGORIES, "Ostatní"),
             normalizeUnit(item.canonical_unit) ?? normalizeUnit(item.unit) ?? "ks",
             match.confidence,
