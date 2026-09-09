@@ -130,6 +130,25 @@ export async function deleteInvoiceAction(invoiceId: number) {
   revalidatePath("/");
 }
 
+/**
+ * Smaže víc dokladů najednou.
+ *
+ * Položky odejdou s dokladem (ON DELETE CASCADE), takže z cenové databáze zmizí
+ * i ceny, které z nich pocházely. Materiály v katalogu ani naučené aliasy se
+ * nemažou — ty zůstávají a hodí se při dalším nahrání.
+ */
+export async function deleteInvoicesAction(ids: number[]): Promise<number> {
+  const clean = ids.filter((id) => Number.isInteger(id) && id > 0);
+  if (clean.length === 0) return 0;
+
+  const placeholders = clean.map(() => "?").join(", ");
+  await run(`DELETE FROM invoices WHERE id IN (${placeholders})`, clean);
+  revalidatePath("/faktury");
+  revalidatePath("/materialy");
+  revalidatePath("/");
+  return clean.length;
+}
+
 export async function reopenInvoice(invoiceId: number) {
   await run(`UPDATE invoices SET status = 'draft', confirmed_at = NULL WHERE id = ?`, [invoiceId]);
   revalidatePath(`/faktury/${invoiceId}`);

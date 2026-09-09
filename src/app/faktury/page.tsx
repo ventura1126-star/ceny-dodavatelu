@@ -1,7 +1,6 @@
 import Link from "next/link";
-import { Badge, Card, Empty, PageTitle } from "@/components/ui";
-import { DOC_TYPE_LABELS, type DocType } from "@/lib/doctypes";
-import { formatCzk, formatDate } from "@/lib/format";
+import InvoiceList from "@/components/InvoiceList";
+import { Empty, PageTitle } from "@/components/ui";
 import { listInvoices } from "@/lib/repo";
 
 export const dynamic = "force-dynamic";
@@ -31,53 +30,7 @@ export default async function InvoicesPage() {
           cta={{ href: "/nahrat", label: "Nahrát doklady" }}
         />
       ) : (
-        <Card className="overflow-x-auto">
-          <table className="table-base">
-            <thead>
-              <tr>
-                <th>Dodavatel</th>
-                <th>Druh</th>
-                <th>Číslo</th>
-                <th>Vystaveno</th>
-                <th>Zakázka</th>
-                <th className="num">Bez DPH</th>
-                <th>Stav</th>
-              </tr>
-            </thead>
-            <tbody>
-              {invoices.map((inv) => (
-                <tr key={inv.id}>
-                  <td>
-                    <Link href={`/faktury/${inv.id}`} className="font-medium hover:underline">
-                      {inv.supplier_name ?? "Neznámý dodavatel"}
-                    </Link>
-                    <div className="text-xs text-bark-500">{inv.file_name}</div>
-                  </td>
-                  <td>
-                    {inv.doc_type === "faktura" ? (
-                      <span className="text-bark-700">Faktura</span>
-                    ) : (
-                      <Badge tone="neutral">
-                        {DOC_TYPE_LABELS[inv.doc_type as DocType] ?? inv.doc_type}
-                      </Badge>
-                    )}
-                  </td>
-                  <td className="text-bark-700">{inv.invoice_number ?? "—"}</td>
-                  <td className="text-bark-700">{formatDate(inv.issue_date)}</td>
-                  <td className="text-bark-700">{inv.project ?? "—"}</td>
-                  <td className="num font-medium">{formatCzk(inv.total_net)}</td>
-                  <td>
-                    {inv.status === "confirmed" ? (
-                      <Badge tone="good">Potvrzeno</Badge>
-                    ) : (
-                      <Badge tone="warn">Ke kontrole</Badge>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </Card>
+        <InvoiceList invoices={invoices} />
       )}
     </>
   );
