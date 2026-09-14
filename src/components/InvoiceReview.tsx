@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import MaterialPicker, { type CatalogEntry } from "@/components/MaterialPicker";
@@ -357,7 +358,17 @@ export default function InvoiceReview({
           {unresolved} položek nemá přiřazený materiál — doplňte název, jinak se do cen nedostanou.
         </p>
       ) : null}
-      {saved ? <p className="text-sm font-medium text-emerald-700">{saved}</p> : null}
+      {saved ? (
+        <div className="flex flex-wrap items-center gap-4">
+          <p className="text-sm font-medium text-emerald-700">{saved}</p>
+          <Link
+            href="/faktury"
+            className="rounded-lg border border-bark-300 bg-white px-4 py-2 text-sm font-medium text-bark-800 transition hover:bg-bark-100"
+          >
+            Zpět k dokladům
+          </Link>
+        </div>
+      ) : null}
     </div>
   );
 }
