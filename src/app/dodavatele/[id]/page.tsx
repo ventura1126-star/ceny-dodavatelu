@@ -1,9 +1,15 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import SupplierContacts from "@/components/SupplierContacts";
 import { Card, PageTitle, Stat } from "@/components/ui";
 import { one } from "@/db";
 import { formatCzk, formatDate } from "@/lib/format";
-import { getSupplierStats, getSupplierTopMaterials, listInvoices } from "@/lib/repo";
+import {
+  getSupplierStats,
+  getSupplierTopMaterials,
+  listInvoices,
+  listSupplierContacts,
+} from "@/lib/repo";
 import { displayUnit } from "@/lib/units";
 import type { Supplier } from "@/lib/types";
 
@@ -19,9 +25,10 @@ export default async function SupplierDetailPage({
   const supplier = await one<Supplier>(`SELECT * FROM suppliers WHERE id = ?`, [supplierId]);
   if (!supplier) notFound();
 
-  const [stats, materials, invoices] = await Promise.all([
+  const [stats, materials, contacts, invoices] = await Promise.all([
     getSupplierStats(),
     getSupplierTopMaterials(supplierId),
+    listSupplierContacts(supplierId),
     listInvoices(),
   ]);
   const mine = stats.find((s) => s.id === supplierId);
@@ -50,6 +57,8 @@ export default async function SupplierDetailPage({
         <Stat label="Celkem odebráno" value={formatCzk(mine?.total_net ?? 0, true)} hint="bez DPH" />
         <Stat label="Různých materiálů" value={String(mine?.materials ?? 0)} />
       </div>
+
+      <SupplierContacts supplierId={supplierId} contacts={contacts} />
 
       <h2 className="mb-3 mt-8 text-sm font-semibold uppercase tracking-wide text-bark-600">
         Nejvíc odebírané materiály

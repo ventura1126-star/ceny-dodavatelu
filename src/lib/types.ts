@@ -104,3 +104,15 @@ export interface MaterialSummary {
   last_offered_date: string | null;
   total_spent: number;
 }
+
+/** Obchodní zástupce nebo kontaktní osoba u dodavatele. */
+export interface SupplierContact {
+  id: number;
+  supplier_id: number;
+  first_name: string | null;
+  last_name: string | null;
+  phone: string | null;
+  email: string | null;
+  scope: string | null;
+  position: number;
+}

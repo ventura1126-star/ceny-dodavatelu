@@ -17,6 +17,20 @@ export const TABLES: string[] = [
     created_at      TEXT NOT NULL DEFAULT (datetime('now'))
   )`,
 
+  // Obchodní zástupci a kontaktní osoby u dodavatele. Zadávají se ručně —
+  // na dokladech bývají nekonzistentně nebo vůbec.
+  `CREATE TABLE IF NOT EXISTS supplier_contacts (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    supplier_id INTEGER NOT NULL REFERENCES suppliers(id) ON DELETE CASCADE,
+    first_name  TEXT,
+    last_name   TEXT,
+    phone       TEXT,
+    email       TEXT,
+    scope       TEXT,
+    position    INTEGER NOT NULL DEFAULT 0,
+    created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+  )`,
+
   `CREATE TABLE IF NOT EXISTS materials (
     id              INTEGER PRIMARY KEY AUTOINCREMENT,
     name            TEXT NOT NULL,
@@ -135,6 +149,7 @@ export const INDEXES: string[] = [
   `CREATE INDEX IF NOT EXISTS idx_invoices_type   ON invoices (doc_type)`,
   `CREATE INDEX IF NOT EXISTS idx_alias_lookup    ON material_aliases (supplier_id, raw_normalized)`,
   `CREATE INDEX IF NOT EXISTS idx_materials_cat   ON materials (category)`,
+  `CREATE INDEX IF NOT EXISTS idx_contacts_supp   ON supplier_contacts (supplier_id, position)`,
 ];
 
 /**

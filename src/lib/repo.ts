@@ -8,6 +8,7 @@ import type {
   Material,
   MaterialSummary,
   Supplier,
+  SupplierContact,
   SupplierPrice,
 } from "./types";
 
@@ -379,6 +380,17 @@ export function getPriceAlerts(limit = 12) {
      ORDER BY ABS(a.price - b.price) / b.price DESC
      LIMIT ?`,
     [limit],
+  );
+}
+
+/** Kontakty u dodavatele, v pořadí, ve kterém je uživatel zadal. */
+export function listSupplierContacts(supplierId: number): Promise<SupplierContact[]> {
+  return all<SupplierContact>(
+    `SELECT id, supplier_id, first_name, last_name, phone, email, scope, position
+     FROM supplier_contacts
+     WHERE supplier_id = ?
+     ORDER BY position, id`,
+    [supplierId],
   );
 }
 

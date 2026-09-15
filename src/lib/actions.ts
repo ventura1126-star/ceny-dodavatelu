@@ -218,3 +218,69 @@ export async function deleteCalculation(id: number) {
   await run(`DELETE FROM calculations WHERE id = ?`, [id]);
   revalidatePath("/kalkulace");
 }
+
+/* ------------------------------------------------------------------ */
+/* Kontakty u dodavatele                                               */
+/* ------------------------------------------------------------------ */
+
+export interface ContactInput {
+  id: number | null;
+  firstName: string;
+  lastName: string;
+  phone: string;
+  email: string;
+  scope: string;
+}
+
+/**
+ * Uloží kontakt na obchodního zástupce. Bez `id` zakládá nový, s `id` přepisuje.
+ *
+ * Prázdná pole se ukládají jako null — kontakt, u kterého znáte jen telefon,
+ * je pořád užitečný, takže nic nevynucujeme kromě jména nebo příjmení.
+ */
+export async function saveSupplierContact(
+  supplierId: number,
+  input: ContactInput,
+): Promise<{ ok: boolean; error?: string }> {
+  const first = input.firstName.trim();
+  const last = input.lastName.trim();
+  if (!first && !last) return { ok: false, error: "Doplňte aspoň jméno nebo příjmení." };
+
+  const values = [
+    first || null,
+    last || null,
+    input.phone.trim() || null,
+    input.email.trim() || null,
+    input.scope.trim() || null,
+  ];
+
+  if (input.id) {
+    await run(
+      `UPDATE supplier_contacts
+          SET first_name = ?, last_name = ?, phone = ?, email = ?, scope = ?
+        WHERE id = ? AND supplier_id = ?`,
+      [...values, input.id, supplierId],
+    );
+  } else {
+    const next = await one<{ pos: number }>(
+      `SELECT COALESCE(MAX(position), 0) + 1 AS pos FROM supplier_contacts WHERE supplier_id = ?`,
+      [supplierId],
+    );
+    await run(
+      `INSERT INTO supplier_contacts (supplier_id, first_name, last_name, phone, email, scope, position)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [supplierId, ...values, next?.pos ?? 1],
+    );
+  }
+
+  revalidatePath(`/dodavatele/${supplierId}`);
+  return { ok: true };
+}
+
+export async function deleteSupplierContact(supplierId: number, contactId: number): Promise<void> {
+  await run(`DELETE FROM supplier_contacts WHERE id = ? AND supplier_id = ?`, [
+    contactId,
+    supplierId,
+  ]);
+  revalidatePath(`/dodavatele/${supplierId}`);
+}
