@@ -75,8 +75,8 @@ export default function SupplierContacts({
       </div>
 
       {form !== null ? (
-        <Card className="mb-3">
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+        <Card className="mb-3 max-w-3xl">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             <Field label="Jméno">
               <input
                 value={form.firstName}
@@ -110,7 +110,7 @@ export default function SupplierContacts({
                 className="input"
               />
             </Field>
-            <Field label="Jaké materiály řeší">
+            <Field label="Jaké materiály řeší" className="sm:col-span-2">
               <input
                 value={form.scope}
                 onChange={(e) => setForm({ ...form, scope: e.target.value })}
@@ -214,9 +214,17 @@ export default function SupplierContacts({
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({
+  label,
+  children,
+  className,
+}: {
+  label: string;
+  children: React.ReactNode;
+  className?: string;
+}) {
   return (
-    <label className="block">
+    <label className={`block ${className ?? ""}`}>
       <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-bark-600">
         {label}
       </span>
