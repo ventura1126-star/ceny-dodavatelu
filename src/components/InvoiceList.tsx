@@ -9,13 +9,42 @@ import { DOC_TYPE_LABELS, type DocType } from "@/lib/doctypes";
 import { formatCzk, formatDate } from "@/lib/format";
 import type { Invoice } from "@/lib/types";
 
+type Filter = "all" | "draft" | "confirmed";
+
+const FILTER_LABELS: Record<Filter, string> = {
+  all: "Vše",
+  draft: "Ke kontrole",
+  confirmed: "Potvrzené",
+};
+
 export default function InvoiceList({ invoices }: { invoices: Invoice[] }) {
   const router = useRouter();
+  const [filter, setFilter] = useState<Filter>("all");
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [confirming, setConfirming] = useState(false);
   const [pending, startTransition] = useTransition();
 
-  const allSelected = invoices.length > 0 && selected.size === invoices.length;
+  const counts: Record<Filter, number> = {
+    all: invoices.length,
+    draft: invoices.filter((i) => i.status !== "confirmed").length,
+    confirmed: invoices.filter((i) => i.status === "confirmed").length,
+  };
+
+  const visible =
+    filter === "all"
+      ? invoices
+      : invoices.filter((i) =>
+          filter === "draft" ? i.status !== "confirmed" : i.status === "confirmed",
+        );
+
+  // Výběr se při přepnutí filtru ruší — mazat se nesmí nic, co uživatel nevidí.
+  function changeFilter(next: Filter) {
+    setFilter(next);
+    setSelected(new Set());
+    setConfirming(false);
+  }
+
+  const allSelected = visible.length > 0 && selected.size === visible.length;
 
   function toggle(id: number) {
     setConfirming(false);
@@ -29,11 +58,11 @@ export default function InvoiceList({ invoices }: { invoices: Invoice[] }) {
 
   function toggleAll() {
     setConfirming(false);
-    setSelected(allSelected ? new Set() : new Set(invoices.map((i) => i.id)));
+    setSelected(allSelected ? new Set() : new Set(visible.map((i) => i.id)));
   }
 
   // Kolik z vybraných je potvrzených — u těch smazání zasáhne i ceny v databázi.
-  const confirmedCount = invoices.filter(
+  const confirmedCount = visible.filter(
     (i) => selected.has(i.id) && i.status === "confirmed",
   ).length;
 
@@ -48,6 +77,27 @@ export default function InvoiceList({ invoices }: { invoices: Invoice[] }) {
 
   return (
     <>
+      <div className="mb-3 flex flex-wrap gap-2">
+        {(Object.keys(FILTER_LABELS) as Filter[]).map((key) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => changeFilter(key)}
+            aria-pressed={filter === key}
+            className={
+              filter === key
+                ? "rounded-lg bg-bark-700 px-3 py-1.5 text-sm font-medium text-white"
+                : "rounded-lg border border-bark-300 bg-white px-3 py-1.5 text-sm font-medium text-bark-700 transition hover:bg-bark-100"
+            }
+          >
+            {FILTER_LABELS[key]}
+            <span className={filter === key ? "ml-1.5 text-bark-200" : "ml-1.5 text-bark-500"}>
+              {counts[key]}
+            </span>
+          </button>
+        ))}
+      </div>
+
       {selected.size > 0 ? (
         <div className="mb-3 flex flex-wrap items-center gap-3 rounded-xl border border-bark-300 bg-bark-100 px-4 py-3">
           <span className="text-sm font-medium text-bark-800">
@@ -122,7 +172,7 @@ export default function InvoiceList({ invoices }: { invoices: Invoice[] }) {
             </tr>
           </thead>
           <tbody>
-            {invoices.map((inv) => (
+            {visible.map((inv) => (
               <tr key={inv.id} className={selected.has(inv.id) ? "bg-bark-100" : undefined}>
                 <td>
                   <input
@@ -161,6 +211,15 @@ export default function InvoiceList({ invoices }: { invoices: Invoice[] }) {
                 </td>
               </tr>
             ))}
+            {visible.length === 0 ? (
+              <tr>
+                <td colSpan={8} className="py-6 text-center text-sm text-bark-600">
+                  {filter === "draft"
+                    ? "Všechny doklady máte zkontrolované."
+                    : "Žádný doklad v tomhle stavu."}
+                </td>
+              </tr>
+            ) : null}
           </tbody>
         </table>
       </Card>
