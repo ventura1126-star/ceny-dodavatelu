@@ -39,10 +39,24 @@ Z přiloženého PDF vytěž hlavičku dokladu a VŠECHNY fakturované řádky. 
     - "Dodací list" → dodaci_list
     U nabídek a potvrzení objednávky bývá věta, že ceny jsou nezávazné nebo platí
     do určitého data — to datum vrať v valid_until.
-11. Dodavatelé často účtují v jiné jednotce, než ve které prodávají: například
-    "30 bal" a zároveň "630 m" s cenou za metr. Vždy vrať tu jednotku a množství,
-    ke kterým se vztahuje jednotková cena — tedy 630 a "m", ne 30 a "bal".
-12. ROZMĚRY BÝVAJÍ VE VLASTNÍCH SLOUPCÍCH, ne v názvu. Některé doklady (typicky
+11. DVĚ JEDNOTKY NA JEDNÉ POLOŽCE. Dodavatelé běžně účtují v jiné jednotce, než
+    ve které prodávají, a rozepisují to na dva řádky. Příklad z faktury JAF HOLZ:
+        0010 56978/4023 KVH KONSTRUKCNI DREVO SMRK NSi 200,00 13.000 40  1,00 KS 18.396,00 -20% 1.530,54
+                        PRUMYSLOVA KVALITA                              0,1040 M3 14.716,73
+    Čte se to takhle:
+      - první řádek: prodejní množství (1,00 KS), CENÍKOVÁ cena PŘED slevou
+        (18.396,00), sleva (-20 %) a celková cena řádku (1.530,54)
+      - druhý řádek: množství v CENOVÉ jednotce (0,1040 M3) a cena za tuhle
+        jednotku PO slevě (14.716,73)
+    Pozor: 18.396,00 NENÍ cena za kus. Je to cena za m3 před slevou —
+    18.396 x 0,8 = 14.716,80, což je právě cena na druhém řádku.
+    VŽDY vrať trojici z DRUHÉHO řádku: quantity = 0.104, unit = "m3",
+    unit_price_net = 14716.73. Nikdy nemíchej množství z prvního řádku
+    s cenou z druhého.
+12. KONTROLA KAŽDÉHO ŘÁDKU: quantity x unit_price_net se musí rovnat
+    line_total_net. Než řádek vrátíš, přenásob si to. Když to nesedí, vzal jsi
+    množství a cenu z různých jednotek — vrať se a oprav to.
+13. ROZMĚRY BÝVAJÍ VE VLASTNÍCH SLOUPCÍCH, ne v názvu. Některé doklady (typicky
     JAF HOLZ) mají tabulku ve tvaru:
         Poz. | Art.č. | Označení | Tl. | Délka | Šířka | Množství MJ | Cena | Sleva | Suma
         0010 55522/0242 DESKY HOBLOVANE SEV.SMRK A/B  18,00  4.200  145  25,00 KS  483,00 -39% 4.485,74

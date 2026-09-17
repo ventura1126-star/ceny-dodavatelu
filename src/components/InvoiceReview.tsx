@@ -70,6 +70,7 @@ export default function InvoiceReview({
   );
   const declaredTotal = Number(totalNet.replace(",", ".")) || 0;
   const mismatch = declaredTotal > 0 && Math.abs(sum - declaredTotal) > 1;
+  const brokenRows = rows.filter((r) => lineMismatch(r) !== null).length;
   const unresolved = rows.filter((r) => r.isMaterial && !r.materialId && !r.newName?.trim()).length;
 
   function submit(confirm: boolean) {
@@ -244,6 +245,11 @@ export default function InvoiceReview({
                     value={row.lineTotal}
                     onChange={(v) => patch(row.id, { lineTotal: v })}
                   />
+                  {lineMismatch(row) !== null ? (
+                    <div className="mt-1 text-xs text-rose-700">
+                      množství × cena = {formatCzk(lineMismatch(row))}
+                    </div>
+                  ) : null}
                 </td>
                 <td>
                   {row.isMaterial ? (
@@ -353,6 +359,15 @@ export default function InvoiceReview({
         </p>
       ) : null}
 
+      {brokenRows > 0 ? (
+        <p className="rounded-lg border border-rose-300 bg-rose-50 p-3 text-sm text-rose-900">
+          {brokenRows === 1 ? "U jednoho řádku" : `U ${brokenRows} řádků`} nedává množství × cena
+          celkovou cenu řádku. Nejčastější příčina: <strong>množství je v jiné jednotce než
+          cena</strong> — třeba 1 ks proti ceně za m³. Na faktuře bývají obě jednotky pod sebou;
+          patří sem ta, ke které se vztahuje cena.
+        </p>
+      ) : null}
+
       {unresolved > 0 ? (
         <p className="text-sm text-amber-800">
           {unresolved} položek nemá přiřazený materiál — doplňte název, jinak se do cen nedostanou.
@@ -371,6 +386,21 @@ export default function InvoiceReview({
       ) : null}
     </div>
   );
+}
+
+/**
+ * Vrátí součin množství × cena, pokud nesouhlasí s celkovou cenou řádku.
+ *
+ * Když to nesedí, obvykle to znamená, že množství a cena pocházejí z různých
+ * jednotek — dodavatelé je rozepisují na dva řádky (1 ks / 0,104 m³) a je snadné
+ * vzít z každého něco jiného. Tolerance je koruna nebo procento, ať nepípá na
+ * zaokrouhlení.
+ */
+function lineMismatch(row: Row): number | null {
+  if (row.quantity === null || row.unitPrice === null || row.lineTotal === null) return null;
+  const product = row.quantity * row.unitPrice;
+  const tolerance = Math.max(1, Math.abs(row.lineTotal) * 0.01);
+  return Math.abs(product - row.lineTotal) > tolerance ? product : null;
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
